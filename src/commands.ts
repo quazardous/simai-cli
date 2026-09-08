@@ -128,10 +128,10 @@ export function compareFiles(realPath: string, playedPath: string, verbose: bool
  */
 export function playChrome(name: string | undefined): number {
   if (!name) {
-    const rows = Object.entries(CHROME).map(([k, c]) => `  ${k.padEnd(9)} ${c.provenance.padEnd(9)} ${c.source}`);
+    const rows = Object.entries(CHROME).map(([k, c]) => `  ${k.padEnd(9)} ${c.shape.padEnd(9)} ${c.source}`);
     console.error(`simcli chrome <client> — print a client's screen\n\n${rows.join("\n")}`);
-    console.error(dim("\n  borrowed = copied from another rendering, never checked against the real client"));
-    console.error(dim("  measured = capture and compare said so"));
+    console.error(dim("\n  copied   = taken from another rendering, never checked against the real client"));
+    console.error(dim("  observed = a capture of the real client settled the shape"));
     return 2;
   }
   const c = chrome(name);

@@ -23,6 +23,8 @@ type Options = {
   why: string;
   check: boolean;
   quiet: boolean;
+  play: boolean;
+  speed: number;
 };
 
 function usage(): never {
@@ -39,12 +41,14 @@ function usage(): never {
   --why <text>    the description the client would have asked the model for
   --check         say whether the line was rewritten, and exit 1 if not
   --quiet         no chrome, just the protocol
+  --play          draw the whole turn: prompt, spinner, output, sign-off
+  --speed <n>     how fast the acted parts play (default 1)
 `);
   process.exit(2);
 }
 
 function parse(argv: string[]): Options {
-  const o: Options = { as: "claude", hook: "jbx", line: "", why: "", check: false, quiet: false };
+  const o: Options = { as: "claude", hook: "jbx", line: "", why: "", check: false, quiet: false, play: false, speed: 1 };
   const rest = [...argv];
   while (rest.length) {
     const arg = rest.shift()!;
@@ -58,6 +62,8 @@ function parse(argv: string[]): Options {
       case "--why": o.why = rest.shift() ?? usage(); break;
       case "--check": o.check = true; break;
       case "--quiet": o.quiet = true; break;
+      case "--play": o.play = true; break;
+      case "--speed": o.speed = Number(rest.shift()) || 1; break;
       default: usage();
     }
   }
@@ -83,7 +89,7 @@ function ask(hook: string, client: string, sent: unknown): string {
 const dim = (s: string) => `\x1b[2m${s}\x1b[0m`;
 const bold = (s: string) => `\x1b[1m${s}\x1b[0m`;
 
-function main(): void {
+async function main(): Promise<void> {
   // TWO GESTURES BEFORE THE PLAYING ONE. Reproducing a screen is
   // guesswork until the real one and the copy are put side by side, so
   // capturing and comparing are verbs here rather than a note in a
@@ -138,6 +144,13 @@ function main(): void {
     }
     console.log(`ok  ${d.label}\n    typed   ${o.line}\n    ran     ${line}`);
     return;
+  }
+
+  if (o.play) {
+    // THE SCENE, NOT THE BARE PROTOCOL. Same hook call, same rewritten
+    // line — dressed, and run the way a client runs it.
+    const { play } = await import("./play.js");
+    process.exit(await play({ client: d.name, prompt: o.why || o.line, line: o.line, ran: line ?? o.line, speed: o.speed }));
   }
 
   if (!o.quiet) {

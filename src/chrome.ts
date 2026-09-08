@@ -1,19 +1,20 @@
 // THE CHROME — what each client puts on screen around the work.
 //
-// Borrowed from busycode (https://github.com/monk-lee/busycode), MIT,
-// Copyright (c) 2026 MonkLabs. See THIRD-PARTY.md. busycode is a browser
-// app: it draws these clients in a web page and cannot run a command.
-// What it does carry is a couple of hundred lines of *observed decor* —
-// the frames, the banners, the grammar of a tool call — and that is the
-// slow part to gather.
+// THE AIM IS FLAVOUR, NOT A REPLICA. Nobody needs a second Claude Code;
+// what a demo needs is a terminal that reads as the family it claims,
+// while the hook call and the command underneath are real. So the thing
+// to get right is the GRAMMAR — which glyph carries a tool result, how a
+// finished turn signs off, what the footer says — and not the pixel.
 //
-// BORROWED IS NOT MEASURED, AND THE DIFFERENCE IS THE POINT. Every
-// dialect in `dialects.ts` was read in its client's own reference. None
-// of what follows was: it is one developer's rendering of a screen,
-// second-hand. So each block carries `provenance`, and the honest way to
-// promote a block from `borrowed` to `measured` is `simcli capture` on
-// the real client and `simcli compare` against what this plays — not a
-// closer reading of the constant.
+// Some of it is borrowed from busycode (https://github.com/monk-lee/busycode),
+// MIT, Copyright (c) 2026 MonkLabs. See THIRD-PARTY.md. busycode is a
+// browser app: it draws these clients in a web page and cannot run a
+// command. What it carries, and what was taken, is the observed decor.
+//
+// Each block says where its shape was seen, because a rendering of a
+// screen is not the screen — and the first block checked against a real
+// pane came back contradicted. `simcli capture` and `simcli compare` are
+// how a `copied` block becomes an `observed` one.
 //
 // AND THE TWO SETS DO NOT LINE UP. busycode draws Codex and OpenCode,
 // which speak no hook dialect here; this program speaks Droid, Cursor
@@ -22,7 +23,7 @@
 // a client's protocol in another client's clothes would make a demo that
 // lies about which one it proved.
 
-export type Provenance = "borrowed" | "measured";
+export type Shape = "observed" | "copied";
 
 /** One step of an agent turn, as these clients group it on screen. */
 export type Step = {
@@ -40,8 +41,8 @@ export type Step = {
 
 export type Chrome = {
   label: string;
-  provenance: Provenance;
-  /** Where it came from, so a reader can go and check. */
+  shape: Shape;
+  /** Where the shape was seen, so a reader can go and check. */
   source: string;
   /** The braille spinner, or whatever this client turns instead. */
   spinner: string[];
@@ -55,56 +56,57 @@ export type Chrome = {
   status?: string[];
   /** What the composer says when empty. */
   placeholder?: string;
+  /** Running words, present tense. */
+  gerunds?: string[];
+  /** The same words once the turn is over, past tense. */
+  done?: string[];
   /** A turn worth playing. */
   timeline?: Step[];
 };
 
 // ── Claude Code ──────────────────────────────────────────────────────
-// MEASURED, AND IT DID NOT AGREE. This block began as busycode's, and
-// `simcli capture` against four independent real panes on 08/09/2026
-// contradicted most of it: busycode hangs tool results off `└`, where
-// Claude Code prints `⎿`; it shows a present-tense `Symbioting…` where
-// the real screen shows a finished `✻ Cogitated for 1m 13s · done
-// 15:52`; it draws a `Model: … | Context: [████░░░]` status bar that
-// never appears at all. What follows is the four panes, not the copy.
+// THE GRAMMAR IS OBSERVED, THE CONTENT IS WRITTEN — and both halves are
+// deliberate. Four live panes on 08/09/2026 settled the shape, and it
+// contradicted the rendering this was first copied from: tool results
+// hang off `⎿`, not `└`; the line under a finished turn is a past-tense
+// `✻ Cogitated for 1m 13s · done 15:52`, not a running `Symbioting…`;
+// the `Model: … | Context: [████░░░]` bar does not exist.
 //
-// That is what `borrowed` was there to warn about — a rendering of a
-// screen is not the screen, and only a capture can tell them apart.
+// What those panes SAID is not reused. They were somebody's real work,
+// in a real repository, and transcribing it here would ship real project
+// content inside a simulator — meaningless to any other reader and not
+// ours to publish. So the sentences below are written, and written about
+// the only thing this program exists to demonstrate: a long command
+// being taken off the agent's hands.
 const claude: Chrome = {
   label: "Claude Code",
-  provenance: "measured",
+  shape: "observed",
   source: "tmux panes %1 %4 %5 %7, four live sessions, 08/09/2026",
-  // ✻ IS REAL AND THE OTHER THREE ARE NOT VERIFIED. The captures only
-  // ever caught the settled frame; the cycle is busycode's and stays
-  // marked as such rather than being quietly promoted alongside it.
+  // ✻ IS OBSERVED; THE OTHER THREE ARE NOT. The captures only ever
+  // caught the settled frame, so the rest of the cycle stays copied
+  // rather than being quietly promoted alongside it.
   spinner: ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"],
   thinking: ["✻", "✳", "✢", "·"],
+  // The gerunds are the client's own whimsy and change release to
+  // release; these are ones that were seen, not an exhaustive list.
+  gerunds: ["Cogitating", "Brewing", "Crunching", "Baking", "Cooking"],
+  done: ["Cogitated", "Brewed", "Crunched", "Baked", "Cooked"],
   status: [
     "  ⏵⏵ auto mode on (shift+tab to cycle) · ← for agents                          new task? /clear to save 404.6k tokens",
   ],
   timeline: [
     {
-      title: "● Poussé sur les deux dépôts. Je clos le ticket.",
-      lines: ["  Called aiball (ctrl+o to expand)"],
-      status: "✻ Baked for 2m 19s · done 13:30",
-      duration: 139000,
-    },
-    {
-      title: "● Le bloqueur est #1793. Je vais voir là plutôt que de reposer sur #1795.",
-      lines: ["  Called aiball 2 times (ctrl+o to expand)"],
-      status: "✻ Cogitated for 1m 13s · done 15:52",
-      duration: 73000,
+      title: "● Reading the test suite before touching it.",
+      lines: ["  ⎿  Read(tests/cli.rs)", "     … +2 lines (ctrl+o to expand)"],
+      status: "Cogitating",
+      duration: 1400,
       thinking: true,
     },
     {
-      title: "● Vérifié plutôt que concédé, et le contrôle a sorti plus que la question posée.",
-      lines: [
-        "  ⎿  482feb9 Le mot « annonces » de l'en-tête mentait — 8,4 points d'unité",
-        "  ⎿  Allowed by auto mode classifier",
-        "     … +6 lines (ctrl+o to expand)",
-      ],
-      status: "✻ Crunched for 14m 3s · done 11:05",
-      duration: 843000,
+      title: "● The build is the slow part. Running it.",
+      lines: [],
+      status: "Crunching",
+      duration: 900,
     },
   ],
 };
@@ -112,7 +114,7 @@ const claude: Chrome = {
 // ── Gemini CLI ───────────────────────────────────────────────────────
 const gemini: Chrome = {
   label: "Gemini CLI",
-  provenance: "borrowed",
+  shape: "copied",
   source: "busycode src/App.tsx — geminiHeaderIcon, geminiTips",
   spinner: ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"],
   banner: ["▝▜▄  ", "  ▝▜▄", " ▗▟▀ ", "▝▀    "],
@@ -130,7 +132,7 @@ const gemini: Chrome = {
 // would otherwise arrive with a blank screen.
 const codex: Chrome = {
   label: "Codex",
-  provenance: "borrowed",
+  shape: "copied",
   // The glyphs come from busycode's JSX, not from a capture: it drew
   // them around these constants rather than inside them.
   source: "busycode src/App.tsx — codexTimeline",
@@ -144,13 +146,13 @@ const codex: Chrome = {
         '  Search "useEffect|setInterval" in src',
         "  Read src/App.tsx, src/App.css",
       ],
-      status: "⠋ Working",
+      status: "Working",
       duration: 850,
     },
     {
       title: "• Ran sed -n 1,220p src/App.tsx",
       lines: ["Reading React state machine and keyboard event routing", "  … +41 lines", "  ✓ • 1.4s"],
-      status: "⠋ Working",
+      status: "Working",
       duration: 1600,
     },
     {
@@ -160,7 +162,7 @@ const codex: Chrome = {
         "  Considering whether the composer should move or the viewport should follow it",
         "  Holding context open while pretending this is computationally expensive",
       ],
-      status: "⠋ Ultra Thinking",
+      status: "Ultra Thinking",
       duration: 14500,
       thinking: true,
     },
@@ -173,7 +175,7 @@ const codex: Chrome = {
 // draw time; expanded here instead, so the constant is the screen.
 const opencode: Chrome = {
   label: "OpenCode",
-  provenance: "borrowed",
+  shape: "copied",
   source: "busycode src/App.tsx — openCodeLogo, openCodePlaceholder",
   spinner: ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"],
   banner: [

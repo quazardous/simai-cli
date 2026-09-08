@@ -64,7 +64,9 @@ its reference has been read — not from another tool's belief about it.
 
 ## Is the copy faithful? Measure it
 
-Reproducing a client's screen is guesswork until the real one and the
+The aim is a client that reads as the family, not a replica of one — so
+this measures whether a copy still looks like its client, not whether it
+matches byte for byte. Reproducing a client's screen is guesswork until the real one and the
 copy are put side by side. Two verbs make that cheap enough to do every
 time, instead of once when the doubt gets loud.
 
@@ -104,6 +106,40 @@ missing, not when a bar is the wrong width.
   played <bar:10> <N%>   esc to interrupt
          57% of the words in common
 ```
+
+## The demo: a command that gets taken off your hands
+
+```console
+$ simcli --as claude --play --why 'build the release' -- 'sleep 60; echo built'
+
+❯ build the release
+
+● The build is the slow part. Running it.
+● Bash(sleep 60; echo built)
+  ⎿  jbx: this passed 30s, so it is in the BACKGROUND as j09cb0fd — nothing lost.
+  ⎿  DO NOT WAIT FOR IT, DO SOMETHING ELSE.
+✻ Cogitated for 30s · done 16:24
+```
+
+Everything after `● Bash(` is real: the payload, the hook, the rewritten
+line, the wait, the moment it lets go. The sentences around it are acted.
+
+### Two conditions, or the scene is empty
+
+Both are facts about what an agent CLI *is*, not choices made here — and
+both bite anyone who tries to film this in a plain terminal.
+
+**No TTY.** jbx steps aside the instant it sees one: a human is watching,
+so it gets out of the way. Recording a bare terminal therefore shows
+nothing happening — *the presence of the terminal is what turns the thing
+off*. A real client never hands a tool a TTY; it reads through a pipe. So
+`--play` pipes, and re-draws the output in the client's own grammar.
+
+**No inherited wrapper.** Run this underneath an agent that already wraps
+commands and the environment carries a marker saying so; the inner
+wrapper then correctly stands down rather than claiming a second id for
+the same work. `--play` drops the marker for the child, because the
+scene is about being the outer one.
 
 ## The chrome, and what it is worth
 
@@ -152,6 +188,8 @@ simcli --as <client> [--hook <path>] [--check] [--quiet] -- '<shell line>'
   --why <text>    the description the client would have asked the model for
   --check         say whether the line was rewritten, and exit 1 if not
   --quiet         no chrome, just the protocol
+  --play          draw the whole turn: prompt, spinner, output, sign-off
+  --speed <n>     how fast the acted parts play (default 1)
 
 simcli capture [--pane <target>] [-o <file>]
 simcli compare <real> <played> [--verbose]
