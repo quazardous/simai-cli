@@ -30,6 +30,8 @@ type Options = {
   think: number;
   splash: boolean;
   inline: boolean;
+  capture: string;
+  size: string;
 };
 
 function usage(): never {
@@ -55,12 +57,15 @@ function usage(): never {
   --think <secs>  how long the acted thinking phase lasts (default 3)
   --no-banner     skip the header
   --inline        stay on the calling terminal, do not take the screen
+  --capture <f>   record the session to an asciicast (.cast), for a video
+  --size <WxH|name>  record at this size: small, default, medium, big,
+                     or 100x30. Without it, the window's own size.
 `);
   process.exit(2);
 }
 
 function parse(argv: string[]): Options {
-  const o: Options = { as: "claude", hook: "jbx", line: "", why: "", check: false, quiet: false, play: false, speed: 1, script: "", pace: 0.6, think: 3, splash: true, inline: false };
+  const o: Options = { as: "claude", hook: "jbx", line: "", why: "", check: false, quiet: false, play: false, speed: 1, script: "", pace: 0.6, think: 3, splash: true, inline: false, capture: "", size: "" };
   const rest = [...argv];
   while (rest.length) {
     const arg = rest.shift()!;
@@ -81,6 +86,8 @@ function parse(argv: string[]): Options {
       case "--think": o.think = Number(rest.shift()) || 0; break;
       case "--no-banner": o.splash = false; break;
       case "--inline": o.inline = true; break;
+      case "--capture": o.capture = rest.shift() ?? usage(); break;
+      case "--size": o.size = rest.shift() ?? usage(); break;
       default: usage();
     }
   }
@@ -130,6 +137,15 @@ async function main(): Promise<void> {
   }
 
   const o = parse(argv);
+  // BEFORE ANYTHING MEASURES THE TERMINAL. The banner, the wrapping and
+  // the cast header all read the size, and they have to read the same one.
+  if (o.size && !(await import("./geometry.js")).force(o.size)) {
+    const { PRESETS } = await import("./geometry.js");
+    const names = Object.entries(PRESETS).map(([n, [c, r]]) => `${n} (${c}x${r})`).join(", ");
+    console.error(`simcli: --size wants <columns>x<rows> or a name — got ${JSON.stringify(o.size)}`);
+    console.error(`  names: ${names}`);
+    process.exit(2);
+  }
   const d: Dialect | undefined = dialect(o.as);
   if (!d) {
     const known = DIALECTS.map((x) => x.name).join(", ");
@@ -144,7 +160,7 @@ async function main(): Promise<void> {
     const script = o.script
       ? (await import("./scenario.js")).parse((await import("node:fs")).readFileSync(o.script, "utf8"))
       : undefined;
-    process.exit(await repl({ d, hook: o.hook, script, pace: o.pace, think: o.think, splash: o.splash, inline: o.inline }));
+    process.exit(await repl({ d, hook: o.hook, script, pace: o.pace, think: o.think, splash: o.splash, inline: o.inline, capture: o.capture }));
   }
 
   const raw = ask(o.hook, d.name, payload(d, o.line, o.why || o.line));
@@ -176,10 +192,22 @@ async function main(): Promise<void> {
   }
 
   if (o.play) {
+    // A ONE-SHOT SCENE IS THE THING MOST LIKELY TO BE FILMED, so it
+    // records on the same flag rather than sending anybody to the
+    // interactive mode to get a file.
+    const stopCast = o.capture ? (await import("./cast.js")).record(o.capture, `simcli — ${d.name}`) : undefined;
+    const { afterwards } = await import("./cast.js");
     // THE SCENE, NOT THE BARE PROTOCOL. Same hook call, same rewritten
     // line — dressed, and run the way a client runs it.
     const { play } = await import("./play.js");
-    process.exit(await play({ client: d.name, prompt: o.why || o.line, line: o.line, ran: line ?? o.line, speed: o.speed }));
+    const code = await play({ client: d.name, prompt: o.why || o.line, line: o.line, ran: line ?? o.line, speed: o.speed });
+    stopCast?.();
+    if (o.capture) {
+      const { existsSync } = await import("node:fs");
+      const has = (bin: string) => (process.env.PATH ?? "").split(":").some((p) => p && existsSync(`${p}/${bin}`));
+      for (const l of afterwards(o.capture, has)) console.log(l);
+    }
+    process.exit(code);
   }
 
   if (!o.quiet) {

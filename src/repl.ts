@@ -98,6 +98,8 @@ export type Session = {
   splash: boolean;
   /** Stay on the calling terminal instead of taking the screen. */
   inline: boolean;
+  /** Write an asciicast here while the session runs. */
+  capture: string;
 };
 
 export async function repl(s: Session): Promise<number> {
@@ -120,6 +122,12 @@ export async function repl(s: Session): Promise<number> {
   // untouched at the end. `--inline` opts out for anyone piping this
   // somewhere that would rather have plain lines.
   const release = s.inline ? () => {} : takeTerminal();
+  // RECORDING STARTS *AFTER* THE SCREEN IS TAKEN, so the alternate-screen
+  // escapes fall OUTSIDE the cast. That is deliberate: a player replaying
+  // them would take over the viewer's terminal and then wipe the very
+  // playback on restore. The cast holds the content; taking the screen is
+  // this session's business, not the recording's.
+  const stopCast = s.capture ? (await import("./cast.js")).record(s.capture, `simcli — ${d.name}`) : undefined;
   try {
   if (s.splash) {
     const { banner } = await import("./banner.js");
@@ -306,9 +314,17 @@ export async function repl(s: Session): Promise<number> {
   }
 
   } finally {
+    stopCast?.();
     release();
   }
   // SAID ON THE CALLING TERMINAL, not on the screen that just vanished.
   console.log(dim("left the session. Anything detached is still running — `jbx ps`."));
+  if (s.capture) {
+    const { afterwards } = await import("./cast.js");
+    const { existsSync } = await import("node:fs");
+    const has = (bin: string) =>
+      (process.env.PATH ?? "").split(":").some((p) => p && existsSync(`${p}/${bin}`));
+    for (const l of afterwards(s.capture, has)) console.log(dim(l));
+  }
   return 0;
 }

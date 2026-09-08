@@ -163,6 +163,62 @@ English paragraph can.
 after `--` already says the run is one-shot, the way every other REPL
 decides it.
 
+## Making a video
+
+`--capture` writes an **asciicast v2** while the session runs — the same
+flag in interactive mode, in a scripted run, or on a one-shot `--play`.
+
+```console
+$ simcli --as claude --script demo.txt --capture demo.cast --size default
+...
+recorded → demo.cast
+  cargo install --locked agg   # then: agg demo.cast demo.gif
+  sudo dnf install asciinema   # then: asciinema play demo.cast
+  ffmpeg -i demo.gif demo.mp4
+```
+
+**A cast is not a video, and that is the point.** It is the timed truth
+of what was printed: small, diffable, replayable, and convertible
+afterwards by tools built for it. Emitting an MP4 directly would mean
+shipping a terminal renderer and a font, and freezing at capture time
+every choice a viewer might want to change. The format is a JSON header
+and one array per burst of output, so it is written here directly — no
+dependency, no pty wrapper.
+
+It records by wrapping `process.stdout.write`, so what lands in the file
+is what the terminal received: escape sequences, the spinner rewriting
+its own line, all of it. A recorder that re-derives the output from the
+program's intentions records the intentions.
+
+The alternate-screen escapes are deliberately left **outside** the cast.
+A player replaying them would take over the viewer's terminal and then
+wipe the playback on restore.
+
+### Size
+
+Without `--size` the recording takes the window's own size — a session
+in a 212-column terminal produces a 212-column cast. `--size` states it
+instead, by name or by numbers:
+
+| | |
+|---|---|
+| `small` | 80x24 — the terminal everyone's terminal used to be |
+| `default` | 100x28 — fits a rendered README's text column |
+| `medium` | 120x32 |
+| `big` | 160x40 — needs a real screen to be read on |
+
+Asking for more than the window has is a warning, not a refusal:
+
+```
+simcli: this window is 100x30, the recording asks for 160x40.
+        Short by 60 columns and 10 rows — lines will wrap and the cast will keep the wrap.
+        Resize the window, or record smaller: --size small (80x24).
+```
+
+The damage is real and invisible until somebody watches the result: long
+lines wrap in the terminal, the wrap is captured as output, and the
+player wraps it again.
+
 ## Recording a demo: `--script`
 
 A scenario is the lines a person would type, echoed at the same prompt
