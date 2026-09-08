@@ -2,22 +2,31 @@
   "name": "simai-cli",
   "version": "0.1.0",
   "description": "Play an agent CLI at a hook: send what Claude Code, Gemini, Cursor, Droid or Copilot really send, and run what comes back.",
+  "bin": {
+    "simcli": "dist/main.js"
+  },
+  "files": [
+    "dist",
+    "demo",
+    "install.sh",
+    "CLIENTS.md",
+    "THIRD-PARTY.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/quazardous/simai-cli.git"
+  },
   "license": "MIT",
   "type": "module",
   "engines": {
     "node": ">=18"
   },
-  "bin": {
-    "simcli": "dist/main.js"
-  },
-  "files": [
-    "dist"
-  ],
   "scripts": {
     "build": "tsc",
     "check": "tsc --noEmit",
     "test": "tsc && node --test dist/*.test.js",
-    "docs": "tsc && node scripts/gen-docs.mjs"
+    "docs": "tsc && node scripts/gen-docs.mjs",
+    "prepare": "tsc"
   },
   "devDependencies": {
     "typescript": "^5.9.0",

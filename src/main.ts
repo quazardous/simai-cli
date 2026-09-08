@@ -41,34 +41,39 @@ function usage(): never {
   const names = DIALECTS.map((d) => d.name).join(", ");
   console.error(`simcli — play an agent CLI at a hook
 
-  simcli --as <client> [--hook <path>]            interactive
-  simcli --as <client> --script <file>            play a scenario, then exit
+  simcli --as <client> [--hook <path>]              interactive session
+  simcli --as <client> --script <file>              play a scenario, then exit
   simcli --as <client> [--check] -- '<shell line>'  one line, then exit
-  simcli capture [--pane <target>] [-o <file>]
-  simcli compare <real> <played> [--verbose]
-  simcli chrome <client>
-  simcli tools                       what it hands off to, and what is missing
-  simcli cast <in.cast> [-o <out>] [--time even] [--from|--to|--speed|--paste]
 
+  simcli tools                        what it hands off to, and what is missing
+  simcli chrome <client>              print a client's screen
+  simcli capture [--pane <t>] [-o <f>]        a real pane, via tmux
+  simcli compare <real> <played>              how close a copy is
+  simcli cast <in> [-o <out>] [options]        treat a recording afterwards
+
+WHICH CLIENT, AND WHAT TO DO
   --as <client>   ${names}
   --hook <path>   the hook to call (default: jbx)
   --why <text>    the description the client would have asked the model for
   --check         say whether the line was rewritten, and exit 1 if not
-  --quiet         no chrome, just the protocol
   --play          draw the whole turn: prompt, spinner, output, sign-off
-  --speed <n>     how fast the acted parts play (default 1)
-  --script <file> lines to play, exactly as a person would type them
-  --pace <secs>   pause between scripted lines (default 0.6)
-  --think <secs>  how long the acted thinking phase lasts (default 3)
+
+HOW IT PLAYS
+  --think <secs>  the acted thinking pause, in a session (default 3)
+  --pace <secs>   between scripted lines (default 0.6; 0 disables typing)
+  --speed <n>     how fast the acted parts of --play run (default 1)
+  --paste         scripted lines appear at once instead of typed
+  --quiet         no chrome, just the protocol
   --no-banner     skip the header
   --inline        stay on the calling terminal, do not take the screen
-  --capture <f>   record the session to an asciicast (.cast), for a video
+
+RECORDING
+  --capture <f>   write an asciicast while the session runs
   --size <WxH|name>  record at this size: small, default, medium, big,
                      or 100x30. Without it, the window's own size.
   --time real|even   keep the wall clock, or cap the pauses YOU made.
                      A command's own time is never rewritten.
-  --paste            scripted lines appear at once instead of typed
-  --keep-typos       keep the editor's corrections in the recording
+  --keep-typos    keep the editor's corrections instead of re-typing
 `);
   process.exit(2);
 }

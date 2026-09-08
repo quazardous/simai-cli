@@ -393,21 +393,26 @@ install agg` resolves to an unrelated crates.io library at 0.1.0 with no
 binary in it and fails with *"there is nothing to install"*, which reads
 like a broken toolchain rather than a wrong name.
 
-## Build
+## Install
 
 ```console
-npm test               # 14 tests, no dependency beyond Node
-./install.sh --check   # what it hands off to, and what is missing
-./install.sh           # install those, after asking
+npm install -g quazardous/simai-cli
+simcli tools
 ```
 
+Straight from git — nothing is published to a registry, and nothing has
+to be. TypeScript builds it on install; there is **no runtime
+dependency**, so that is the whole of it. Node 18 or later.
+
+To work on it instead:
 
 ```console
+git clone https://github.com/quazardous/simai-cli && cd simai-cli
 npm install
-npm run build
+npm test               # 33 tests, Node's own runner
+npm run docs           # rewrite CLIENTS.md from the dialect table
+./install.sh --check   # what it hands off to, and what is missing
 ```
-
-TypeScript to build, **nothing at runtime**. Node 18 or later.
 
 ## Written for
 
