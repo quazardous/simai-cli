@@ -62,6 +62,49 @@ where the others say `tool_name` and `tool_input`.
 Each shape was read in that client's own reference. A row is added when
 its reference has been read — not from another tool's belief about it.
 
+## Is the copy faithful? Measure it
+
+Reproducing a client's screen is guesswork until the real one and the
+copy are put side by side. Two verbs make that cheap enough to do every
+time, instead of once when the doubt gets loud.
+
+```console
+$ simcli capture --pane %3 -o real.txt      # tmux capture-pane
+$ your-simulator > played.txt
+$ simcli compare real.txt played.txt
+```
+
+It normalises first — a timer ticks, a percentage moves, a session was
+saved four minutes ago instead of one — and **prints every rule it
+applied before showing what survived**. A normaliser that masks enough
+makes any two screens match, so a comparison that hides its own masking
+proves nothing.
+
+**Widths are kept on purpose.** A progress bar becomes `<bar:40>`, never
+`<bar>`. That single choice is what caught the first real drift this was
+pointed at: a copy drawing ten blocks where the real screen draws forty.
+
+Lines are sorted into three piles, and the difference matters:
+
+| | |
+|---|---|
+| **exact** | identical once the volatile parts are masked |
+| **drifted** | plainly the same line, not right yet — a polish job |
+| **absent** | the real screen has it and the copy does not — work undone |
+
+Only **absent** exits non-zero. A build should stop when a screen is
+missing, not when a bar is the wrong width.
+
+```
+2 line(s) reached but not right:
+  real    Compacting conversation… (<Ns>)
+  played ✶ Compacting conversation…
+         67% of the words in common
+  real     <bar:40> <N%>
+  played <bar:10> <N%>   esc to interrupt
+         57% of the words in common
+```
+
 ## Usage
 
 ```console
@@ -72,6 +115,9 @@ simcli --as <client> [--hook <path>] [--check] [--quiet] -- '<shell line>'
   --why <text>    the description the client would have asked the model for
   --check         say whether the line was rewritten, and exit 1 if not
   --quiet         no chrome, just the protocol
+
+simcli capture [--pane <target>] [-o <file>]
+simcli compare <real> <played> [--verbose]
 ```
 
 It does not assume any particular hook. `--hook` takes a path, and the

@@ -14,6 +14,7 @@
 
 import { spawnSync } from "node:child_process";
 import { DIALECTS, dialect, payload, rewritten, type Dialect } from "./dialects.js";
+import { capture, compareFiles } from "./commands.js";
 
 type Options = {
   as: string;
@@ -29,6 +30,8 @@ function usage(): never {
   console.error(`simcli — play an agent CLI at a hook
 
   simcli --as <client> [--hook <path>] [--check] -- '<shell line>'
+  simcli capture [--pane <target>] [-o <file>]
+  simcli compare <real> <played> [--verbose]
 
   --as <client>   ${names}
   --hook <path>   the hook to call (default: jbx)
@@ -80,7 +83,26 @@ const dim = (s: string) => `\x1b[2m${s}\x1b[0m`;
 const bold = (s: string) => `\x1b[1m${s}\x1b[0m`;
 
 function main(): void {
-  const o = parse(process.argv.slice(2));
+  // TWO GESTURES BEFORE THE PLAYING ONE. Reproducing a screen is
+  // guesswork until the real one and the copy are put side by side, so
+  // capturing and comparing are verbs here rather than a note in a
+  // README telling somebody to pipe tmux into diff.
+  const argv = process.argv.slice(2);
+  if (argv[0] === "capture") {
+    const t = argv.indexOf("--pane");
+    const o = argv.indexOf("-o");
+    process.exit(capture(t >= 0 ? argv[t + 1] : undefined, o >= 0 ? argv[o + 1] : undefined));
+  }
+  if (argv[0] === "compare") {
+    const files = argv.slice(1).filter((a) => !a.startsWith("-"));
+    if (files.length !== 2) {
+      console.error("simcli compare <real> <played> [--verbose]");
+      process.exit(2);
+    }
+    process.exit(compareFiles(files[0]!, files[1]!, argv.includes("--verbose")));
+  }
+
+  const o = parse(argv);
   const d: Dialect | undefined = dialect(o.as);
   if (!d) {
     const known = DIALECTS.map((x) => x.name).join(", ");
