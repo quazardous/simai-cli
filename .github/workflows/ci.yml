@@ -1,0 +1,78 @@
+# THE TESTS, ON EVERY PUSH.
+#
+# Without this they run when somebody remembers, which is the same as
+# not having them — a guard nobody runs is a comment with a longer
+# compile time.
+#
+# Node only, and three of them: this has no runtime dependency, so the
+# thing worth knowing is whether it still builds and passes on the
+# versions people actually have. The outside tools it hands off to —
+# tmux, agg, asciinema, ffmpeg — are deliberately NOT installed here.
+# They belong to verbs that talk to a real terminal or draw a GIF, and
+# a CI that pretends to exercise those would be testing the runner.
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # The floor the package declares, the current LTS, and the next.
+        node: ["18", "22", "24"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm ci
+      - run: npm run check
+      - run: npm test
+
+  # A SECOND JOB, BECAUSE A DEMO THAT NO LONGER PLAYS IS A BROKEN README.
+  #
+  # Two hooks, because silence and success look identical from here and
+  # only both together say the protocol works: one that rewrites every
+  # line to `true`, one that answers nothing at all.
+  #
+  # The rewriting one is also what keeps this fast. The demo scenario
+  # runs `sleep 45` on purpose — that is the whole point of it — and a
+  # hook that answers nothing lets it run for real. Rewritten, the same
+  # scenario plays in four seconds and still exercises every step.
+  plays:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci
+      - run: npm run build
+
+      - name: two hooks — one that rewrites, one that says nothing
+        run: |
+          printf '#!/bin/sh\ncat > /dev/null\nprintf \x27{"hookSpecificOutput":{"updatedInput":{"command":"true"}}}\\n\x27\n' > /tmp/rewriting-hook
+          printf '#!/bin/sh\nexit 0\n' > /tmp/silent-hook
+          chmod +x /tmp/rewriting-hook /tmp/silent-hook
+
+      - name: the README's own scenario still plays
+        run: |
+          node dist/main.js --as claude --hook /tmp/rewriting-hook \
+            --script demo/detach.txt --pace 0 --think 0 \
+            --no-banner --inline --size small < /dev/null
+
+      - name: --check passes when the line came back rewritten
+        run: node dist/main.js --as claude --hook /tmp/rewriting-hook --check -- 'sleep 45' < /dev/null
+
+      - name: --check FAILS when the hook said nothing
+        run: |
+          if node dist/main.js --as claude --hook /tmp/silent-hook --check -- 'sleep 45' < /dev/null; then
+            echo "--check passed against a hook that rewrote nothing — it now proves nothing" >&2
+            exit 1
+          fi

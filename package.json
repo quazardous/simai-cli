@@ -16,7 +16,8 @@
   "scripts": {
     "build": "tsc",
     "check": "tsc --noEmit",
-    "test": "tsc && node --test dist/*.test.js"
+    "test": "tsc && node --test dist/*.test.js",
+    "docs": "tsc && node scripts/gen-docs.mjs"
   },
   "devDependencies": {
     "typescript": "^5.9.0",
