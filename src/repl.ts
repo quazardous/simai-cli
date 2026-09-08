@@ -26,6 +26,7 @@
 
 import { createInterface } from "node:readline";
 import { takeTerminal } from "./screen.js";
+import { mark, typed, type Timing } from "./cast.js";
 import { spawnSync } from "node:child_process";
 import { chrome, type Chrome } from "./chrome.js";
 import { runDrawn, signOff } from "./play.js";
@@ -100,6 +101,12 @@ export type Session = {
   inline: boolean;
   /** Write an asciicast here while the session runs. */
   capture: string;
+  /** Real wall clock, or human pauses evened out. */
+  timing: Timing;
+  /** Scripted lines appear at once unless a beat says otherwise. */
+  paste: boolean;
+  /** Keep the editor's corrections in the recording. */
+  keepTypos: boolean;
 };
 
 export async function repl(s: Session): Promise<number> {
@@ -127,7 +134,7 @@ export async function repl(s: Session): Promise<number> {
   // them would take over the viewer's terminal and then wipe the very
   // playback on restore. The cast holds the content; taking the screen is
   // this session's business, not the recording's.
-  const stopCast = s.capture ? (await import("./cast.js")).record(s.capture, `simcli — ${d.name}`) : undefined;
+  const stopCast = s.capture ? (await import("./cast.js")).record(s.capture, `simcli — ${d.name}`, s.timing, !s.keepTypos) : undefined;
   try {
   if (s.splash) {
     const { banner } = await import("./banner.js");
@@ -244,6 +251,32 @@ export async function repl(s: Session): Promise<number> {
     console.log();
   }
 
+  /**
+   * TYPE A SCRIPTED LINE, ONE CHARACTER AT A TIME.
+   *
+   * A scenario that prints its prompt whole reads as a machine talking
+   * to itself; the same line typed reads as somebody using the thing.
+   * It costs a second and it is most of what makes a recording watchable.
+   *
+   * `--pace 0` means "no theatre", so it prints at once there.
+   */
+  async function type(line: string, paste = false): Promise<void> {
+    if (paste || !s.pace) {
+      console.log(`❯ ${line}`);
+      return;
+    }
+    mark("human");
+    process.stdout.write("❯ ");
+    for (const ch of line) {
+      process.stdout.write(ch);
+      // A HAND IS NOT A METRONOME. A little jitter, and a beat after a
+      // space, is the difference between typed and pasted.
+      await sleep(38 + (ch === " " ? 60 : 0) + (line.length % 7) * 2);
+    }
+    process.stdout.write("\n");
+    mark("machine");
+  }
+
   /** Indent a written line the way the generated ones are indented. */
   function wrapped(line: string, _width: number): string {
     return line ? `  ${line}` : "";
@@ -299,15 +332,25 @@ export async function repl(s: Session): Promise<number> {
     // ECHOED AT THE PROMPT, so a recording shows the line as if typed.
     // A demo where commands appear to run themselves reads as a fake.
     for (const beat of s.script) {
-      console.log(`❯ ${beat.input}`);
+      await type(beat.input, beat.paste ?? s.paste);
       if (!(await handle(beat.input, beat))) break;
       await sleep(s.pace * 1000);
     }
   } else {
     const rl = createInterface({ input: process.stdin, output: process.stdout, prompt: "❯ " });
+    // WAITING ON A KEYBOARD IS HUMAN TIME. Marking it is what lets
+    // `--time even` cap the pauses without touching a command's.
+    mark("human");
     rl.prompt();
     for await (const raw of rl) {
-      if (!(await handle(raw.trim()))) break;
+      // WHAT WAS SUBMITTED, not what the editor echoed. Under `--time
+      // even` this line is re-typed cleanly in the recording and the
+      // backspaces go with the echo.
+      typed(raw.trim());
+      mark("machine");
+      const go = await handle(raw.trim());
+      mark("human");
+      if (!go) break;
       rl.prompt();
     }
     rl.close();

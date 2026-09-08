@@ -9,6 +9,7 @@
 //
 //     explique le détachement
 //         think 5
+//         paste                 (or `type`, the default — see below)
 //         Une commande longue ne doit pas immobiliser l'agent.
 //         Elle part au fond, et la session continue.
 //
@@ -28,6 +29,8 @@ export type Beat = {
   answer?: string[];
   /** Seconds of visible thinking, overriding the session default. */
   think?: number;
+  /** Appear at once instead of being typed out. */
+  paste?: boolean;
 };
 
 export function parse(text: string): Beat[] {
@@ -47,10 +50,21 @@ export function parse(text: string): Beat[] {
         continue;
       }
       const body = line.trim();
-      const think = /^think\s+([\d.]+)$/.exec(body);
-      if (think && !last.answer) {
-        last.think = Number(think[1]);
-        continue;
+      // DIRECTIVES ONLY BEFORE THE ANSWER STARTS, so a written answer
+      // can contain the word "paste" without becoming one.
+      if (!last.answer) {
+        const think = /^think\s+([\d.]+)$/.exec(body);
+        if (think) {
+          last.think = Number(think[1]);
+          continue;
+        }
+        // HOW THE LINE ARRIVES. A command pasted from somewhere reads
+        // differently from one somebody typed, and a demo that types a
+        // sixty-character path is a demo nobody watches to the end.
+        if (body === "paste" || body === "type") {
+          last.paste = body === "paste";
+          continue;
+        }
       }
       (last.answer ??= []).push(body);
       continue;

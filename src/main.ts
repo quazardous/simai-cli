@@ -32,6 +32,9 @@ type Options = {
   inline: boolean;
   capture: string;
   size: string;
+  timing: string;
+  paste: boolean;
+  keepTypos: boolean;
 };
 
 function usage(): never {
@@ -44,6 +47,7 @@ function usage(): never {
   simcli capture [--pane <target>] [-o <file>]
   simcli compare <real> <played> [--verbose]
   simcli chrome <client>
+  simcli cast <in.cast> [-o <out>] [--time even] [--keep-typos]
 
   --as <client>   ${names}
   --hook <path>   the hook to call (default: jbx)
@@ -60,12 +64,16 @@ function usage(): never {
   --capture <f>   record the session to an asciicast (.cast), for a video
   --size <WxH|name>  record at this size: small, default, medium, big,
                      or 100x30. Without it, the window's own size.
+  --time real|even   keep the wall clock, or cap the pauses YOU made.
+                     A command's own time is never rewritten.
+  --paste            scripted lines appear at once instead of typed
+  --keep-typos       keep the editor's corrections in the recording
 `);
   process.exit(2);
 }
 
 function parse(argv: string[]): Options {
-  const o: Options = { as: "claude", hook: "jbx", line: "", why: "", check: false, quiet: false, play: false, speed: 1, script: "", pace: 0.6, think: 3, splash: true, inline: false, capture: "", size: "" };
+  const o: Options = { as: "claude", hook: "jbx", line: "", why: "", check: false, quiet: false, play: false, speed: 1, script: "", pace: 0.6, think: 3, splash: true, inline: false, capture: "", size: "", timing: "real", paste: false, keepTypos: false };
   const rest = [...argv];
   while (rest.length) {
     const arg = rest.shift()!;
@@ -88,6 +96,9 @@ function parse(argv: string[]): Options {
       case "--inline": o.inline = true; break;
       case "--capture": o.capture = rest.shift() ?? usage(); break;
       case "--size": o.size = rest.shift() ?? usage(); break;
+      case "--time": o.timing = rest.shift() ?? usage(); break;
+      case "--paste": o.paste = true; break;
+      case "--keep-typos": o.keepTypos = true; break;
       default: usage();
     }
   }
@@ -127,6 +138,27 @@ async function main(): Promise<void> {
     process.exit(capture(t >= 0 ? argv[t + 1] : undefined, o >= 0 ? argv[o + 1] : undefined));
   }
   if (argv[0] === "chrome") process.exit(playChrome(argv[1]));
+  if (argv[0] === "cast") {
+    // THE TREATMENT IS A CONVERSION, NOT A RECORDING OPTION. Record once
+    // and honestly; decide afterwards how it should read.
+    const { load, save, even } = await import("./cast.js");
+    const files = argv.slice(1).filter((a) => !a.startsWith("-"));
+    const at = argv.indexOf("-o");
+    const input = files[0];
+    if (!input) {
+      console.error("simcli cast <in.cast> [-o <out.cast>] [--time even] [--keep-typos]");
+      process.exit(2);
+    }
+    const { header, items } = load(input);
+    const done = argv.includes("--time") && argv[argv.indexOf("--time") + 1] === "even"
+      ? even(items, !argv.includes("--keep-typos"))
+      : items;
+    const out = at >= 0 ? argv[at + 1]! : input;
+    save(out, header, done);
+    const was = items.filter((i) => i.kind === "out").length;
+    console.error(`${input} → ${out}: ${was} output events, ${done[done.length - 1]?.at.toFixed(1) ?? 0}s`);
+    process.exit(0);
+  }
   if (argv[0] === "compare") {
     const files = argv.slice(1).filter((a) => !a.startsWith("-"));
     if (files.length !== 2) {
@@ -160,7 +192,7 @@ async function main(): Promise<void> {
     const script = o.script
       ? (await import("./scenario.js")).parse((await import("node:fs")).readFileSync(o.script, "utf8"))
       : undefined;
-    process.exit(await repl({ d, hook: o.hook, script, pace: o.pace, think: o.think, splash: o.splash, inline: o.inline, capture: o.capture }));
+    process.exit(await repl({ d, hook: o.hook, script, pace: o.pace, think: o.think, splash: o.splash, inline: o.inline, capture: o.capture, timing: o.timing === "even" ? "even" : "real", paste: o.paste, keepTypos: o.keepTypos }));
   }
 
   const raw = ask(o.hook, d.name, payload(d, o.line, o.why || o.line));
