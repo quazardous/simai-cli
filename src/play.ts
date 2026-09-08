@@ -55,6 +55,11 @@ export async function runDrawn(
   c: Chrome,
   what: { argv: string[] } | { line: string },
   onDone?: (code: number, took: number) => void,
+  // WHAT IT IS DOING, IN ONE WORD. `Cogitating…` is what a client says
+  // while it thinks, and it is wrong over a running command: `/fg` in
+  // particular is not thinking, it is refusing to let go. A spinner that
+  // says the wrong thing is worse than no spinner, because it is read.
+  word = "Working",
 ): Promise<number> {
   const env = { ...process.env };
   // See the header: the scene is about being the OUTER wrapper.
@@ -67,7 +72,6 @@ export async function runDrawn(
   const started = Date.now();
   let frame = 0;
   let spinning = true;
-  const word = c.gerunds?.[0] ?? "Working";
   const live = setInterval(() => {
     if (!spinning || !process.stdout.isTTY) return;
     const e = span((Date.now() - started) / 1000);
@@ -92,8 +96,7 @@ export async function runDrawn(
   return code;
 }
 
-export function signOff(c: Chrome, took: number): void {
-  const past = c.done?.[0] ?? "Ran";
+export function signOff(c: Chrome, took: number, past = "Ran"): void {
   console.log(dim(`${c.thinking?.[0] ?? "*"} ${past} for ${span(took)} · done ${clock()}`));
 }
 
@@ -141,8 +144,8 @@ export async function play(scene: Scene): Promise<number> {
 
   // THE COMMAND, FOR REAL — piped, and without the inherited marker.
   let took = 0;
-  const code = await runDrawn(c, { line: scene.ran }, (_c, t) => (took = t));
-  signOff(c, took);
+  const code = await runDrawn(c, { line: scene.ran }, (_c, t) => (took = t), "Running");
+  signOff(c, took, "Ran");
   if (c.status) {
     console.log();
     for (const l of c.status) console.log(dim(l));

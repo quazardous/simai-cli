@@ -30,6 +30,7 @@ import { chrome, type Chrome } from "./chrome.js";
 import { runDrawn, signOff } from "./play.js";
 import { payload, rewritten, type Dialect } from "./dialects.js";
 import { burst } from "./lorem.js";
+import { type Beat } from "./scenario.js";
 
 const dim = (s: string) => `\x1b[2m${s}\x1b[0m`;
 const bold = (s: string) => `\x1b[1m${s}\x1b[0m`;
@@ -86,8 +87,8 @@ const PLAIN: Record<string, string[]> = { "/ps": ["ps"], "/list": ["list"], "/ga
 export type Session = {
   d: Dialect;
   hook: string;
-  /** Lines to play instead of reading a keyboard. Absent = interactive. */
-  script?: string[];
+  /** Beats to play instead of reading a keyboard. Absent = interactive. */
+  script?: Beat[];
   /** Seconds between scripted lines, so a recording is watchable. */
   pace: number;
   /** How long the acted thinking phase lasts. */
@@ -116,7 +117,7 @@ export async function repl(s: Session): Promise<number> {
   console.log();
 
   /** One typed line. Returns false when the session should end. */
-  async function handle(input: string): Promise<boolean> {
+  async function handle(input: string, beat?: Beat): Promise<boolean> {
     if (!input) return true;
     if (input === "/exit" || input === "/quit") return false;
     if (input === "/help") {
@@ -138,34 +139,40 @@ export async function repl(s: Session): Promise<number> {
 
     let took = 0;
     const done = (_code: number, t: number) => (took = t);
+    // ONE WORD PER DOOR, PRESENT AND PAST. They do different things and
+    // saying so is most of what makes the three legible side by side.
+    let now = "Running";
+    let then = "Ran";
 
     if (input.startsWith("/run ")) {
-      await agent(input.slice(5).trim(), done);
+      await agent(input.slice(5).trim(), done, now);
     } else if (input.startsWith("/fg ")) {
       const line = input.slice(4).trim();
       console.log(`● Bash(${line})` + dim("   held on purpose"));
-      await runDrawn(c!, { argv: [hook, "fg", "--", line] }, done);
+      [now, then] = ["Waiting", "Waited"];
+      await runDrawn(c!, { argv: [hook, "fg", "--", line] }, done, now);
     } else if (input.startsWith("/bg ")) {
       const line = input.slice(4).trim();
       console.log(`● Bash(${line})` + dim("   handed over before it starts"));
-      await runDrawn(c!, { argv: [hook, "queue", intentOf(line), "--", line] }, done);
+      [now, then] = ["Handing over", "Handed over in"];
+      await runDrawn(c!, { argv: [hook, "queue", intentOf(line), "--", line] }, done, now);
     } else if (input.startsWith("/say ") || input.startsWith("/cat ")) {
       // SHORTHANDS FOR THE TWO GESTURES A DEMO KEEPS NEEDING: something
       // that prints and something that reads. Both take the agent path,
       // because what is useful to SEE is a short line handed straight
       // back — the cut only fires on what actually runs long.
       const rest = input.slice(5).trim();
-      await agent(input.startsWith("/say ") ? `echo ${shq(rest)}` : `cat ${shq(rest)}`, done);
+      await agent(input.startsWith("/say ") ? `echo ${shq(rest)}` : `cat ${shq(rest)}`, done, now);
     } else if (input.startsWith("/")) {
       console.log(dim(`  unknown: ${input.split(" ")[0]} — /help`));
       return true;
     } else {
       // TALKING. Acted end to end, and the only part of the session that
       // is — which is exactly why the filler must not read as prose.
-      await say(input);
+      await say(input, beat);
       return true;
     }
-    signOff(c!, took);
+    signOff(c!, took, then);
     console.log();
     return true;
   }
@@ -177,7 +184,7 @@ export async function repl(s: Session): Promise<number> {
    * makes the rest of the session legible: a reader who has watched a
    * two-second answer knows what the thirty-second one means.
    */
-  async function say(prompt: string): Promise<void> {
+  async function say(prompt: string, beat?: Beat): Promise<void> {
     const started = Date.now();
     const width = Math.min((process.stdout.columns ?? 80) - 4, 92);
     let seed = 0;
@@ -187,20 +194,30 @@ export async function repl(s: Session): Promise<number> {
     // ask is fine in a real session and unreadable in a recording, where
     // the prompt has already scrolled by the time the answer lands.
     console.log(`● You said ${JSON.stringify(prompt)}.`);
-    for (const l of burst(1, width, seed)) console.log(l);
-    console.log();
+    // A WRITTEN ANSWER REPLACES THE FILLER ENTIRELY — including the
+    // opening line. Half-written and half-lorem would read as a glitch,
+    // and the whole reason to write one is to be read.
+    if (!beat?.answer) {
+      for (const l of burst(1, width, seed)) console.log(l);
+      console.log();
+    }
 
     // THE PAUSE IS THE POINT. Somebody who has watched a three-second
     // answer knows what the thirty-second one means; without it the
     // detachment later has nothing to be long compared to.
-    await spin(s.think);
+    await spin(beat?.think ?? s.think);
 
-    for (const l of burst(2, width, seed + 7)) {
-      console.log(l);
+    for (const l of beat?.answer ?? burst(2, width, seed + 7)) {
+      console.log(wrapped(l, width));
       await sleep(l ? 45 : 120);
     }
-    signOff(c!, (Date.now() - started) / 1000);
+    signOff(c!, (Date.now() - started) / 1000, c!.done?.[0] ?? "Answered");
     console.log();
+  }
+
+  /** Indent a written line the way the generated ones are indented. */
+  function wrapped(line: string, _width: number): string {
+    return line ? `  ${line}` : "";
   }
 
   /** The thinking phase, counted up on one rewritten line. */
@@ -229,7 +246,7 @@ export async function repl(s: Session): Promise<number> {
    * where this client reads it, so what runs is whatever the hook
    * decided — including nothing, if it was not watching this tool.
    */
-  async function agent(line: string, done: (c: number, t: number) => void): Promise<void> {
+  async function agent(line: string, done: (c: number, t: number) => void, word: string): Promise<void> {
     const r = spawnSync(hook, ["hook", d.name], {
       input: JSON.stringify(payload(d, line, line)),
       encoding: "utf8",
@@ -246,17 +263,15 @@ export async function repl(s: Session): Promise<number> {
     }
     console.log(`● Bash(${line})`);
     if (ran === line) console.log(dim("  ⎿  the hook did not rewrite this one"));
-    await runDrawn(c!, { line: ran }, done);
+    await runDrawn(c!, { line: ran }, done, word);
   }
 
   if (s.script) {
     // ECHOED AT THE PROMPT, so a recording shows the line as if typed.
     // A demo where commands appear to run themselves reads as a fake.
-    for (const line of s.script) {
-      const input = line.trim();
-      if (!input || input.startsWith("#")) continue;
-      console.log(`❯ ${input}`);
-      if (!(await handle(input))) break;
+    for (const beat of s.script) {
+      console.log(`❯ ${beat.input}`);
+      if (!(await handle(beat.input, beat))) break;
       await sleep(s.pace * 1000);
     }
   } else {

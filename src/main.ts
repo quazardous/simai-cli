@@ -136,7 +136,7 @@ async function main(): Promise<void> {
   if (!o.line || o.script) {
     const { repl } = await import("./repl.js");
     const script = o.script
-      ? (await import("node:fs")).readFileSync(o.script, "utf8").split("\n")
+      ? (await import("./scenario.js")).parse((await import("node:fs")).readFileSync(o.script, "utf8"))
       : undefined;
     process.exit(await repl({ d, hook: o.hook, script, pace: o.pace, think: o.think }));
   }

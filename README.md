@@ -146,23 +146,37 @@ decides it.
 
 ## Recording a demo: `--script`
 
-A scenario file holds exactly the lines a person would type, echoed at
-the same prompt and fed to the same handler.
+A scenario is the lines a person would type, echoed at the same prompt
+and fed to the same handler. **Anything indented under a line belongs to
+that line** — it replaces the filler, so a recording says something.
+
+```
+# a scenario is comments, typed lines, and answers under them
+
+pourquoi une commande longue part-elle au fond ?
+    think 2
+    Parce qu'un agent qui attend soixante secondes ne fait rien d'autre.
+    La commande continue, la session repart, et rien n'est perdu.
+
+/fg sleep 3; echo tenu
+/run sleep 60; echo build fini
+/ps
+```
 
 ```console
-$ cat demo.txt
-# a short one — handed straight back
-/say hello world
-# and a long one — the cut takes it away
-sleep 60; echo built
-/ps
-
 $ simcli --as claude --script demo.txt --pace 0.8
 ```
 
-It is deliberately **not a second language**. A screencast drifts away
-from the tool it demonstrates the moment the two are written separately;
-here the recording runs the same code path a person does, so it cannot.
+Indentation is the only syntax and `think` the only directive; a line
+with nothing under it behaves exactly as if typed. **No new language and
+no dependency** — a demo format that has to be learned goes stale, and a
+YAML parser to express one nesting level would be more code than the
+program.
+
+Each door says what it is doing, in its own word: `/run` is `Running…`,
+`/fg` is `Waiting…` — it is not thinking, it is refusing to let go — and
+a bare prompt is the client's own `Cogitating…`. A spinner that says the
+wrong thing is worse than none, because it gets read.
 
 ## The demo: a command that gets taken off your hands
 
