@@ -107,6 +107,53 @@ missing, not when a bar is the wrong width.
          57% of the words in common
 ```
 
+## Try it by hand
+
+With no line to run, it stays in the session — which is the only way to
+feel the difference between the three doors, because they are only
+meaningful next to each other:
+
+```console
+$ simcli --as claude
+
+Claude Code, played.  The turn is acted; the hook and the line are real.
+30s before a long line detaches itself. /help for what else you can type.
+
+❯ sleep 60; echo built          # wrapped — let go of if it outlasts the cut
+❯ /fg sleep 60; echo built      # held to the end, however long
+❯ /bg sleep 60; echo built      # handed over before it starts
+❯ /say hello                    # the short case, which never detaches
+❯ /cat README.md                # a file read, drawn as a tool result
+❯ /ps  /list  /gain             # what jbx has to say about it
+❯ /exit
+```
+
+Typing the same `sleep 60` three ways is the whole lesson.
+
+**There is no `--interactive` flag**, and there should not be: a line
+after `--` already says the run is one-shot, the way every other REPL
+decides it. A flag would be a second way of saying the same thing.
+
+## Recording a demo: `--script`
+
+A scenario file holds exactly the lines a person would type, echoed at
+the same prompt and fed to the same handler.
+
+```console
+$ cat demo.txt
+# a short one — handed straight back
+/say hello world
+# and a long one — the cut takes it away
+sleep 60; echo built
+/ps
+
+$ simcli --as claude --script demo.txt --pace 0.8
+```
+
+It is deliberately **not a second language**. A screencast drifts away
+from the tool it demonstrates the moment the two are written separately;
+here the recording runs the same code path a person does, so it cannot.
+
 ## The demo: a command that gets taken off your hands
 
 ```console

@@ -25,13 +25,17 @@ type Options = {
   quiet: boolean;
   play: boolean;
   speed: number;
+  script: string;
+  pace: number;
 };
 
 function usage(): never {
   const names = DIALECTS.map((d) => d.name).join(", ");
   console.error(`simcli — play an agent CLI at a hook
 
-  simcli --as <client> [--hook <path>] [--check] -- '<shell line>'
+  simcli --as <client> [--hook <path>]            interactive
+  simcli --as <client> --script <file>            play a scenario, then exit
+  simcli --as <client> [--check] -- '<shell line>'  one line, then exit
   simcli capture [--pane <target>] [-o <file>]
   simcli compare <real> <played> [--verbose]
   simcli chrome <client>
@@ -43,12 +47,14 @@ function usage(): never {
   --quiet         no chrome, just the protocol
   --play          draw the whole turn: prompt, spinner, output, sign-off
   --speed <n>     how fast the acted parts play (default 1)
+  --script <file> lines to play, exactly as a person would type them
+  --pace <secs>   pause between scripted lines (default 0.6)
 `);
   process.exit(2);
 }
 
 function parse(argv: string[]): Options {
-  const o: Options = { as: "claude", hook: "jbx", line: "", why: "", check: false, quiet: false, play: false, speed: 1 };
+  const o: Options = { as: "claude", hook: "jbx", line: "", why: "", check: false, quiet: false, play: false, speed: 1, script: "", pace: 0.6 };
   const rest = [...argv];
   while (rest.length) {
     const arg = rest.shift()!;
@@ -64,10 +70,14 @@ function parse(argv: string[]): Options {
       case "--quiet": o.quiet = true; break;
       case "--play": o.play = true; break;
       case "--speed": o.speed = Number(rest.shift()) || 1; break;
+      case "--script": o.script = rest.shift() ?? usage(); break;
+      case "--pace": o.pace = Number(rest.shift()) || 0; break;
       default: usage();
     }
   }
-  if (!o.line) usage();
+  // NO LINE MEANS INTERACTIVE. That is how every other REPL decides it,
+  // and a separate `--interactive` flag would be a second way of saying
+  // what `--` already says.
   return o;
 }
 
@@ -116,6 +126,16 @@ async function main(): Promise<void> {
     const known = DIALECTS.map((x) => x.name).join(", ");
     console.error(`simcli: no dialect for ${JSON.stringify(o.as)} — known: ${known}`);
     process.exit(2);
+  }
+
+  // INTERACTIVE OR SCRIPTED — same session, same vocabulary, one driven
+  // by a keyboard and the other by a file.
+  if (!o.line || o.script) {
+    const { repl } = await import("./repl.js");
+    const script = o.script
+      ? (await import("node:fs")).readFileSync(o.script, "utf8").split("\n")
+      : undefined;
+    process.exit(await repl({ d, hook: o.hook, script, pace: o.pace }));
   }
 
   const raw = ask(o.hook, d.name, payload(d, o.line, o.why || o.line));

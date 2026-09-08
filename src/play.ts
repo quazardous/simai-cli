@@ -41,6 +41,62 @@ function span(seconds: number): string {
   return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${s % 60}s`;
 }
 
+/**
+ * RUN SOMETHING AND DRAW IT AS THE CLIENT WOULD.
+ *
+ * Shared by the one-shot scene and the interactive mode, on purpose: two
+ * renderers drift, and the whole point of this program is that what you
+ * watch is what happened.
+ *
+ * `argv` runs a program directly — no shell, so nothing needs quoting.
+ * `line` goes through `/bin/sh -c`, which is what a hook hands back.
+ */
+export async function runDrawn(
+  c: Chrome,
+  what: { argv: string[] } | { line: string },
+  onDone?: (code: number, took: number) => void,
+): Promise<number> {
+  const env = { ...process.env };
+  // See the header: the scene is about being the OUTER wrapper.
+  delete env.JBX_WRAPPED;
+  const child =
+    "argv" in what
+      ? spawn(what.argv[0]!, what.argv.slice(1), { env, stdio: ["ignore", "pipe", "pipe"] })
+      : spawn("/bin/sh", ["-c", what.line], { env, stdio: ["ignore", "pipe", "pipe"] });
+
+  const started = Date.now();
+  let frame = 0;
+  let spinning = true;
+  const word = c.gerunds?.[0] ?? "Working";
+  const live = setInterval(() => {
+    if (!spinning || !process.stdout.isTTY) return;
+    const e = span((Date.now() - started) / 1000);
+    process.stdout.write(
+      `\r${CSI}2K${dim(`  ${c.spinner[frame++ % c.spinner.length]} ${word}… (${e} · esc to interrupt)`)}`,
+    );
+  }, 120);
+
+  const show = (chunk: Buffer) => {
+    if (process.stdout.isTTY) process.stdout.write(`\r${CSI}2K`);
+    for (const l of chunk.toString().replace(/\n$/, "").split("\n")) console.log(dim(`  ⎿  ${l}`));
+  };
+  child.stdout.on("data", show);
+  child.stderr.on("data", show);
+
+  const code: number = await new Promise((r) => child.on("close", (x) => r(x ?? 0)));
+  spinning = false;
+  clearInterval(live);
+  if (process.stdout.isTTY) process.stdout.write(`\r${CSI}2K`);
+  const took = (Date.now() - started) / 1000;
+  onDone?.(code, took);
+  return code;
+}
+
+export function signOff(c: Chrome, took: number): void {
+  const past = c.done?.[0] ?? "Ran";
+  console.log(dim(`${c.thinking?.[0] ?? "*"} ${past} for ${span(took)} · done ${clock()}`));
+}
+
 export type Scene = {
   client: string;
   /** What the human typed. */
@@ -82,41 +138,11 @@ export async function play(scene: Scene): Promise<number> {
   }
 
   console.log(`● Bash(${scene.line})`);
-  const started = Date.now();
 
-  // THE COMMAND, FOR REAL, THROUGH A PIPE AND WITHOUT THE MARKER.
-  const env = { ...process.env };
-  delete env.JBX_WRAPPED;
-  const child = spawn("/bin/sh", ["-c", scene.ran], { env, stdio: ["ignore", "pipe", "pipe"] });
-
-  let spinning = true;
-  let frame = 0;
-  const word = c.gerunds?.[0] ?? "Working";
-  const live = setInterval(() => {
-    if (!spinning || !process.stdout.isTTY) return;
-    const elapsed = span((Date.now() - started) / 1000);
-    process.stdout.write(`\r${CSI}2K${dim(`  ${c.spinner[frame++ % c.spinner.length]} ${word}… (${elapsed} · esc to interrupt)`)}`);
-  }, 120);
-
-  // OUTPUT IS RE-DRAWN, NOT PASSED THROUGH. A tool result on these
-  // clients hangs off a glyph and is indented under the call; letting
-  // the raw stream land at column zero is the single loudest tell that
-  // a terminal is not the client it claims to be.
-  const show = (chunk: Buffer) => {
-    if (process.stdout.isTTY) process.stdout.write(`\r${CSI}2K`);
-    for (const l of chunk.toString().replace(/\n$/, "").split("\n")) console.log(dim(`  ⎿  ${l}`));
-  };
-  child.stdout.on("data", show);
-  child.stderr.on("data", show);
-
-  const code: number = await new Promise((r) => child.on("close", (c) => r(c ?? 0)));
-  spinning = false;
-  clearInterval(live);
-  if (process.stdout.isTTY) process.stdout.write(`\r${CSI}2K`);
-
-  const took = (Date.now() - started) / 1000;
-  const past = c.done?.[0] ?? "Ran";
-  console.log(dim(`${c.thinking?.[0] ?? "*"} ${past} for ${span(took)} · done ${clock()}`));
+  // THE COMMAND, FOR REAL — piped, and without the inherited marker.
+  let took = 0;
+  const code = await runDrawn(c, { line: scene.ran }, (_c, t) => (took = t));
+  signOff(c, took);
   if (c.status) {
     console.log();
     for (const l of c.status) console.log(dim(l));
