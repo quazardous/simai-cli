@@ -42,7 +42,7 @@ The shape the others are compared against, and the only one with a full screen b
 {
   "hook_event_name": "PreToolUse",
   "session_id": "simcli",
-  "cwd": "/home/david/Private/dev/projects/BookShepherd/simai-cli",
+  "cwd": "/home/you/project",
   "tool_name": "Bash",
   "tool_input": {
     "command": "npm run build",
@@ -80,7 +80,7 @@ The shape the others are compared against, and the only one with a full screen b
 {
   "hook_event_name": "BeforeTool",
   "session_id": "simcli",
-  "cwd": "/home/david/Private/dev/projects/BookShepherd/simai-cli",
+  "cwd": "/home/you/project",
   "tool_name": "run_shell_command",
   "tool_input": {
     "command": "npm run build",
@@ -118,7 +118,7 @@ Claude's envelope with a different tool name. That single word is the whole diff
 {
   "hook_event_name": "PreToolUse",
   "session_id": "simcli",
-  "cwd": "/home/david/Private/dev/projects/BookShepherd/simai-cli",
+  "cwd": "/home/you/project",
   "tool_name": "Execute",
   "tool_input": {
     "command": "npm run build",
@@ -156,7 +156,7 @@ The rewrite comes back at the **top level**, not under `hookSpecificOutput`. Its
 {
   "hook_event_name": "preToolUse",
   "session_id": "simcli",
-  "cwd": "/home/david/Private/dev/projects/BookShepherd/simai-cli",
+  "cwd": "/home/you/project",
   "tool_name": "Shell",
   "tool_input": {
     "command": "npm run build",
@@ -192,7 +192,7 @@ Its own format throughout: camelCase keys, a lowercase tool name, and the rewrit
 {
   "hook_event_name": "preToolUse",
   "session_id": "simcli",
-  "cwd": "/home/david/Private/dev/projects/BookShepherd/simai-cli",
+  "cwd": "/home/you/project",
   "toolName": "bash",
   "toolArgs": {
     "command": "npm run build",

@@ -80,11 +80,17 @@ export function dialect(name: string): Dialect | undefined {
 }
 
 /** The payload this client would really send for one shell line. */
-export function payload(d: Dialect, line: string, why: string): unknown {
+export function payload(d: Dialect, line: string, why: string, cwd = process.cwd()): unknown {
   return {
     hook_event_name: d.event,
     session_id: "simcli",
-    cwd: process.cwd(),
+    // OVERRIDABLE BECAUSE THE DOCUMENTATION EMBEDS IT. Left to
+    // `process.cwd()`, the generated CLIENTS.md carried whichever
+    // machine last ran `npm run docs` — which put an author's home
+    // directory in a public repository, and made the test that guards
+    // that page fail on every machine but that one. CI was red four
+    // times for it.
+    cwd,
     [d.keys.tool]: d.tool,
     [d.keys.input]: { command: line, description: why, timeout: 600000 },
   };

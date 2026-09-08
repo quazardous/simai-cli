@@ -12,6 +12,11 @@
 import { DIALECTS, payload, type Dialect } from "./dialects.js";
 import { chrome } from "./chrome.js";
 
+// A STABLE PATH, NOT THIS MACHINE'S. The page is committed and compared
+// against a fresh render, so anything that varies by machine makes the
+// guard fail everywhere except where the file was last written.
+const EXAMPLE_CWD = "/home/you/project";
+
 const NOTES: Record<string, string> = {
   claude:
     "The shape the others are compared against, and the only one with a full screen behind it.",
@@ -74,7 +79,7 @@ ${NOTES[d.name]}
 **What it sends:**
 
 \`\`\`json
-${JSON.stringify(payload(d, "npm run build", "build the project"), null, 2)}
+${JSON.stringify(payload(d, "npm run build", "build the project", EXAMPLE_CWD), null, 2)}
 \`\`\`
 
 **What it expects back:**
