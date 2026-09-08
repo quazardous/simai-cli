@@ -35,9 +35,18 @@ export type Beat = {
 
 export function parse(text: string): Beat[] {
   const beats: Beat[] = [];
+  let pending = false;
   for (const raw of text.split("\n")) {
     const line = raw.replace(/\s+$/, "");
-    if (!line.trim() || line.trim().startsWith("#")) continue;
+    if (line.trim().startsWith("#")) continue;
+    // A BLANK LINE INSIDE AN ANSWER IS A PARAGRAPH BREAK, and dropping
+    // it turns two written paragraphs into one wall. It cannot be
+    // recognised by indentation — a blank line has none — so it is held
+    // until the next line says whether it belonged to an answer.
+    if (!line.trim()) {
+      pending = beats.length > 0 && beats[beats.length - 1]!.answer !== undefined;
+      continue;
+    }
 
     // INDENTED MEANS IT BELONGS TO THE LINE ABOVE.
     if (/^\s/.test(line)) {
@@ -66,9 +75,13 @@ export function parse(text: string): Beat[] {
           continue;
         }
       }
-      (last.answer ??= []).push(body);
+      last.answer ??= [];
+      if (pending) last.answer.push("");
+      pending = false;
+      last.answer.push(body);
       continue;
     }
+    pending = false;
     beats.push({ input: line.trim() });
   }
   return beats;

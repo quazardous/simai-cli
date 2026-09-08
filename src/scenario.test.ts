@@ -85,3 +85,19 @@ test("indentation is the syntax, so a typed line cannot be indented", () => {
   }
   assert.deepEqual(parse("spaced out  \n").map((b) => b.input), ["spaced out"]);
 });
+
+test("a blank line inside an answer is a paragraph break", () => {
+  // Dropping it turns two written paragraphs into one wall of text. It
+  // cannot be spotted by indentation — a blank line has none — so it is
+  // held until the next line says whether it belonged to an answer.
+  const beats = parse("why?\n    first thought.\n\n    second one.\n");
+  assert.deepEqual(beats[0]!.answer, ["first thought.", "", "second one."]);
+});
+
+test("a blank line BETWEEN beats is not a paragraph break", () => {
+  // The same character sequence, meaning the opposite thing. Scenarios
+  // are written with blank lines between beats for readability, and
+  // carrying those into the next answer would open every one with a gap.
+  const beats = parse("first\n    an answer.\n\nsecond\n    another.\n");
+  assert.deepEqual(beats[1]!.answer, ["another."]);
+});

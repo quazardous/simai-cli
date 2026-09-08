@@ -1,0 +1,28 @@
+# tic-tac-boom — the bomb that does not go off in your face.
+# Lines are typed as a person would type them; indented text is what
+# the agent answers, and `think` is how long it pretends to consider it.
+
+light the fuse
+    think 2
+    Forty-five seconds. Traditionally this is the part where everyone
+    stares at the terminal and holds their breath.
+
+    I would rather not.
+
+/run sleep 45; echo BOOM
+
+so it is still ticking?
+    think 1
+    It is. Under an id, somewhere else, entirely on its own time.
+    We have thirty-five seconds and absolutely nothing to do with them.
+
+/say hello from a completely unexploded terminal
+
+/ps
+
+and when it goes off?
+    think 2
+    It says BOOM into its own log, and jbx mentions it on the way past.
+    Nobody was waiting for it. That is the whole trick.
+
+/exit

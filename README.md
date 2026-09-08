@@ -2,36 +2,25 @@
 
 **Play an agent CLI at a hook.**
 
-![a long command taken off the agent's hands](demo/detach.gif)
+![a bomb that goes off somewhere else](demo/boom.gif)
 
-That is jbx being taken off an agent's hands, filmed with this. The
-scenario, the recording and the render are all in `demo/` — and the
-scenario itself lives in [jbx](https://github.com/quazardous/jobbox),
-where it belongs, since it demonstrates jbx and not this:
+```
+❯ /run sleep 45; echo BOOM
+● Bash(sleep 45; echo BOOM)
+  ⎿  jbx: this passed 10s, so it is in the BACKGROUND as j9fdbcfe — nothing lost.
+  ⎿  DO NOT WAIT FOR IT, DO SOMETHING ELSE.
 
-```console
-simcli --as claude --script demo/detach.txt \
-       --capture demo/detach.cast --size default
-agg --font-family "Liberation Mono" demo/detach.cast demo/detach.gif
+❯ so it is still ticking?
+  It is. Under an id, somewhere else, entirely on its own time.
+  We have thirty-five seconds and absolutely nothing to do with them.
 ```
 
-**Re-running that does not produce the same bytes, and cannot.** A rerun
-was measured against the shipped one: 47 lines of screen on each side,
-14 of them differing — the wall clock in the sign-off, the job id jbx
-minted, and how many spinner frames fitted in the same wait. Everything
-that is not a clock, an id or a frame count is identical.
+The agent is acted. **The bomb is real** — a real hook saw a real command,
+rewrote it, and a real wrapper walked away from it. That is the only half
+worth filming, and it is the half that is not faked.
 
-Which is what `simcli compare` is for, and the honest way to state it:
-
-```console
-$ simcli compare shipped.txt rebuilt.txt
-38 of 38 real lines exact (100%)
-faithful
-```
-
-Reproducible means *that* — the same screen, not the same file. A demo
-that claimed byte equality would be claiming its own timestamps do not
-move.
+`demo/boom.txt` is the whole script. `simcli --script demo/boom.txt
+--capture boom.cast`, then `agg boom.cast boom.gif`.
 
 ## Why `--check` is the point
 
@@ -47,19 +36,6 @@ perfectly installed.
 `--check` is where the expectation gets written down. It exits non-zero
 when the line came back unchanged, so a wrong dialect fails a build
 instead of somebody's afternoon.
-
-## What is real and what is acted
-
-| | |
-|---|---|
-| **acted** | the prompt, the pacing, the banner — the agent's turn |
-| **real** | the payload, the hook call, the rewritten line, its output, its exit code |
-
-That split is deliberate. A screen recording of a genuine session drifts
-away from the tool it demonstrates without anyone noticing; this cannot,
-because the only thing it fakes is the part not being demonstrated — and
-it says so on screen. **A fabricated agent turn presented as a recorded
-session would be a lie, and one that does not survive being asked.**
 
 ## The five
 
