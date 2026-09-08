@@ -5,9 +5,11 @@
 ![a long command taken off the agent's hands](demo/detach.gif)
 
 *Made with this: `simcli --as claude --script demo/detach.txt --capture
-detach.cast --size default`, then `agg`. The cut is set to 10s in the
-recording so it stays watchable — the default is 30s, and the scenario
-says so on screen.*
+demo/detach.cast --size default`, then `agg`. The cut is set to 10s in
+the recording so it stays watchable — the default is 30s, and the
+scenario says so on screen. It goes through no `simcli cast` treatment:
+speeding it up would contradict the "10s" printed in the frame, which is
+the one number a demo of a threshold must not blur.*
 
 Claude Code, Gemini CLI, Cursor, Factory Droid and GitHub Copilot CLI all
 let a hook see a shell command before it runs, and rewrite it. They agree

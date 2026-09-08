@@ -85,17 +85,50 @@ export function typed(line: string): void {
   sink?.({ at: 0, kind: "typed", text: line });
 }
 
+/**
+ * RECORD, WRITING AS IT GOES.
+ *
+ * Every event is appended the moment it happens. THE FIRST VERSION HELD
+ * THE WHOLE TIMELINE IN MEMORY and wrote it on close, which lost the
+ * entire recording the first time a session was killed rather than
+ * exited — a thirty-second demo, gone, with an empty path where the file
+ * should have been. A recorder that only produces a file when everything
+ * went well is a recorder that fails exactly when you needed the
+ * evidence.
+ *
+ * So the file on disk is always the raw truth, and `timing` is applied
+ * afterwards by re-reading it — the same path `simcli cast` takes. One
+ * treatment, one place, and nothing buffered that a signal can take away.
+ */
 export function record(path: string, label: string, timing: Timing = "real", retype = true): Stop {
   const started = Date.now();
-  const items: Item[] = [];
-  sink = (item) => items.push({ ...item, at: (Date.now() - started) / 1000 });
+  const fd = openSync(path, "w");
+  writeSync(
+    fd,
+    JSON.stringify({
+      version: 2,
+      width: process.stdout.columns ?? 80,
+      height: process.stdout.rows ?? 24,
+      timestamp: Math.floor(started / 1000),
+      title: label,
+      env: { TERM: process.env.TERM ?? "xterm-256color", SHELL: process.env.SHELL ?? "/bin/sh" },
+    }) + "\n",
+  );
+
+  const put = (item: Item) => {
+    const at = ((Date.now() - started) / 1000).toFixed(6);
+    if (item.kind === "out") writeSync(fd, `[${at}, "o", ${JSON.stringify(item.text)}]\n`);
+    else if (item.kind === "phase") writeSync(fd, `[${at}, "m", ${JSON.stringify(item.phase)}]\n`);
+    else writeSync(fd, `[${at}, "i", ${JSON.stringify(item.text)}]\n`);
+  };
+  sink = put;
+
   const original = process.stdout.write.bind(process.stdout);
   let stopped = false;
-
   process.stdout.write = ((chunk: unknown, ...rest: unknown[]) => {
     if (!stopped && chunk != null) {
       const text = typeof chunk === "string" ? chunk : Buffer.from(chunk as Uint8Array).toString("utf8");
-      items.push({ at: (Date.now() - started) / 1000, kind: "out", text });
+      put({ at: 0, kind: "out", text });
     }
     return (original as (...a: unknown[]) => boolean)(chunk, ...rest);
   }) as typeof process.stdout.write;
@@ -105,36 +138,24 @@ export function record(path: string, label: string, timing: Timing = "real", ret
     stopped = true;
     process.stdout.write = original;
     sink = null;
-
-    const fd = openSync(path, "w");
-    writeSync(
-      fd,
-      JSON.stringify({
-        version: 2,
-        width: process.stdout.columns ?? 80,
-        height: process.stdout.rows ?? 24,
-        timestamp: Math.floor(started / 1000),
-        title: label,
-        env: { TERM: process.env.TERM ?? "xterm-256color", SHELL: process.env.SHELL ?? "/bin/sh" },
-      }) + "\n",
-    );
-    // THE MARKS GO IN THE FILE. A cast that records only what was
-    // printed can never be normalised afterwards: nothing in it says
-    // which silence was a person and which was a build, and that is the
-    // whole distinction. `m` and `i` are asciicast event codes players
-    // already skip, so the file stays playable as it is.
-    for (const e of timing === "even" ? even(items, retype) : items) {
-      const at = e.at.toFixed(6);
-      if (e.kind === "out") writeSync(fd, `[${at}, "o", ${JSON.stringify(e.text)}]\n`);
-      else if (e.kind === "phase") writeSync(fd, `[${at}, "m", ${JSON.stringify(e.phase)}]\n`);
-      else writeSync(fd, `[${at}, "i", ${JSON.stringify(e.text)}]\n`);
-    }
     closeSync(fd);
+    // The convenience of asking for a treatment at record time, done the
+    // only safe way: on the file, once it is complete and safe on disk.
+    if (timing === "even") {
+      const { header, items } = load(path);
+      save(path, header, even(items, retype));
+    }
   };
-  // A SESSION ENDED BY CTRL-C IS THE ONE MOST WORTH KEEPING — it is what
-  // a demo does when it has gone wrong, and losing the file at exactly
-  // that moment is how a recording bug hides.
+  // KILLED IS THE CASE THAT MATTERS. A session ended by Ctrl-C is what a
+  // demo does when it has gone wrong, and that is often the take worth
+  // keeping. SIGHUP too: closing a terminal, or `tmux kill-session`.
   process.on("exit", stop);
+  for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"] as const) {
+    process.on(sig, () => {
+      stop();
+      process.exit(sig === "SIGINT" ? 130 : 143);
+    });
+  }
   return stop;
 }
 
