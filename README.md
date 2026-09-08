@@ -2,6 +2,13 @@
 
 **Play an agent CLI at a hook.**
 
+![a long command taken off the agent's hands](demo/detach.gif)
+
+*Made with this: `simcli --as claude --script demo/detach.txt --capture
+detach.cast --size default`, then `agg`. The cut is set to 10s in the
+recording so it stays watchable — the default is 30s, and the scenario
+says so on screen.*
+
 Claude Code, Gemini CLI, Cursor, Factory Droid and GitHub Copilot CLI all
 let a hook see a shell command before it runs, and rewrite it. They agree
 on almost nothing about how — not the name of the shell tool, not the
@@ -379,6 +386,12 @@ binary in it and fails with *"there is nothing to install"*, which reads
 like a broken toolchain rather than a wrong name.
 
 ## Build
+
+```console
+./install.sh --check   # what it hands off to, and what is missing
+./install.sh           # install those, after asking
+```
+
 
 ```console
 npm install
