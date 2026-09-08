@@ -5,7 +5,7 @@
 ![a long command taken off the agent's hands](demo/detach.gif)
 
 *Made with this: `simcli --as claude --script demo/detach.txt --capture
-demo/detach.cast --size default`, then `agg`. The cut is set to 10s in
+demo/detach.cast --size default`, then `agg --font-family "Liberation Mono"`. The cut is set to 10s in
 the recording so it stays watchable — the default is 30s, and the
 scenario says so on screen. It goes through no `simcli cast` treatment:
 speeding it up would contradict the "10s" printed in the frame, which is

@@ -217,3 +217,26 @@ test("input can be re-typed or pasted, decided at conversion", () => {
     "typing costs one event per character; pasting costs one",
   );
 });
+
+test("a recorded newline carries its carriage return", async () => {
+  // THE DEFECT THAT ONLY SHOWS ON PLAYBACK. A live terminal is in cooked
+  // mode and its driver turns `\n` into `\r\n` on the way out; a program
+  // writing to a wrapped stdout never sees that. Record the program's
+  // side and a player gets line feeds with no carriage return — every
+  // line starting where the last one ended, in a staircase — while the
+  // session that produced it looked perfect.
+  const { record } = await import("./cast.js");
+  const { mkdtempSync, readFileSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+
+  const path = join(mkdtempSync(join(tmpdir(), "simcli-")), "nl.cast");
+  const stop = record(path, "test");
+  process.stdout.write("one\ntwo\r\nthree\n");
+  stop();
+
+  const events = readFileSync(path, "utf8").split("\n").filter(Boolean).slice(1);
+  const written = events.map((l) => (JSON.parse(l) as [number, string, string])[2]).join("");
+  assert.ok(!/(?<!\r)\n/.test(written), "no bare line feed survives");
+  assert.equal((written.match(/\r\n/g) ?? []).length, 3, "and none is doubled either");
+});

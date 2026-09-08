@@ -100,6 +100,26 @@ export function typed(line: string): void {
  * afterwards by re-reading it — the same path `simcli cast` takes. One
  * treatment, one place, and nothing buffered that a signal can take away.
  */
+/**
+ * A CAST MUST CARRY `\r\n`, AND A PROGRAM WRITES `\n`.
+ *
+ * The difference is the tty driver: in cooked mode it translates line
+ * feeds to carriage-return-line-feed on the way out, so the terminal
+ * receives `\r\n` while the program only ever wrote `\n`. Wrapping
+ * `process.stdout.write` records the program's side — before that
+ * translation — and a player feeding those bytes to an emulator gets a
+ * line feed with no carriage return: each line starts where the last one
+ * ended, in a staircase.
+ *
+ * It is invisible while recording, because the live terminal looks
+ * perfect. It only appears on playback, which is the whole point of the
+ * file. So the translation is done here, exactly once — `\r\n` already
+ * present is left alone.
+ */
+function crlf(text: string): string {
+  return text.replace(/(?<!\r)\n/g, "\r\n");
+}
+
 export function record(path: string, label: string, timing: Timing = "real", retype = true): Stop {
   const started = Date.now();
   const fd = openSync(path, "w");
@@ -117,7 +137,7 @@ export function record(path: string, label: string, timing: Timing = "real", ret
 
   const put = (item: Item) => {
     const at = ((Date.now() - started) / 1000).toFixed(6);
-    if (item.kind === "out") writeSync(fd, `[${at}, "o", ${JSON.stringify(item.text)}]\n`);
+    if (item.kind === "out") writeSync(fd, `[${at}, "o", ${JSON.stringify(crlf(item.text))}]\n`);
     else if (item.kind === "phase") writeSync(fd, `[${at}, "m", ${JSON.stringify(item.phase)}]\n`);
     else writeSync(fd, `[${at}, "i", ${JSON.stringify(item.text)}]\n`);
   };
