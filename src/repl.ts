@@ -93,6 +93,8 @@ export type Session = {
   pace: number;
   /** How long the acted thinking phase lasts. */
   think: number;
+  /** Take the terminal for a moment on the way in. */
+  splash: boolean;
 };
 
 export async function repl(s: Session): Promise<number> {
@@ -109,6 +111,8 @@ export async function repl(s: Session): Promise<number> {
   // silently, the first time somebody changed it.
   const cfg = spawnSync(hook, ["after"], { encoding: "utf8" });
   const cut = (cfg.stdout ?? "").trim().split("\n")[0] || "the configured cut";
+
+  if (s.splash) await (await import("./splash.js")).splash("simcli — play an agent CLI at a hook");
 
   console.log();
   console.log(bold(`${c.label}, played.`) + dim("  The turn is acted; the hook and the line are real."));
