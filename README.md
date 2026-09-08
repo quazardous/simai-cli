@@ -4,7 +4,10 @@
 
 ![a long command taken off the agent's hands](demo/detach.gif)
 
-The scenario, the recording and the render are all in `demo/`:
+That is jbx being taken off an agent's hands, filmed with this. The
+scenario, the recording and the render are all in `demo/` — and the
+scenario itself lives in [jbx](https://github.com/quazardous/jobbox),
+where it belongs, since it demonstrates jbx and not this:
 
 ```console
 simcli --as claude --script demo/detach.txt \
