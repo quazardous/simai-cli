@@ -29,6 +29,7 @@ type Options = {
   pace: number;
   think: number;
   splash: boolean;
+  inline: boolean;
 };
 
 function usage(): never {
@@ -52,13 +53,14 @@ function usage(): never {
   --script <file> lines to play, exactly as a person would type them
   --pace <secs>   pause between scripted lines (default 0.6)
   --think <secs>  how long the acted thinking phase lasts (default 3)
-  --no-splash     skip the opening screen
+  --no-banner     skip the header
+  --inline        stay on the calling terminal, do not take the screen
 `);
   process.exit(2);
 }
 
 function parse(argv: string[]): Options {
-  const o: Options = { as: "claude", hook: "jbx", line: "", why: "", check: false, quiet: false, play: false, speed: 1, script: "", pace: 0.6, think: 3, splash: true };
+  const o: Options = { as: "claude", hook: "jbx", line: "", why: "", check: false, quiet: false, play: false, speed: 1, script: "", pace: 0.6, think: 3, splash: true, inline: false };
   const rest = [...argv];
   while (rest.length) {
     const arg = rest.shift()!;
@@ -77,7 +79,8 @@ function parse(argv: string[]): Options {
       case "--script": o.script = rest.shift() ?? usage(); break;
       case "--pace": o.pace = Number(rest.shift()) || 0; break;
       case "--think": o.think = Number(rest.shift()) || 0; break;
-      case "--no-splash": o.splash = false; break;
+      case "--no-banner": o.splash = false; break;
+      case "--inline": o.inline = true; break;
       default: usage();
     }
   }
@@ -141,7 +144,7 @@ async function main(): Promise<void> {
     const script = o.script
       ? (await import("./scenario.js")).parse((await import("node:fs")).readFileSync(o.script, "utf8"))
       : undefined;
-    process.exit(await repl({ d, hook: o.hook, script, pace: o.pace, think: o.think, splash: o.splash }));
+    process.exit(await repl({ d, hook: o.hook, script, pace: o.pace, think: o.think, splash: o.splash, inline: o.inline }));
   }
 
   const raw = ask(o.hook, d.name, payload(d, o.line, o.why || o.line));

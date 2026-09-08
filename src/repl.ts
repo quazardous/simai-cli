@@ -25,6 +25,7 @@
 // show is the real behaviour rather than an arrangement.
 
 import { createInterface } from "node:readline";
+import { takeTerminal } from "./screen.js";
 import { spawnSync } from "node:child_process";
 import { chrome, type Chrome } from "./chrome.js";
 import { runDrawn, signOff } from "./play.js";
@@ -93,8 +94,10 @@ export type Session = {
   pace: number;
   /** How long the acted thinking phase lasts. */
   think: number;
-  /** Take the terminal for a moment on the way in. */
+  /** Print the header above the welcome. */
   splash: boolean;
+  /** Stay on the calling terminal instead of taking the screen. */
+  inline: boolean;
 };
 
 export async function repl(s: Session): Promise<number> {
@@ -112,7 +115,17 @@ export async function repl(s: Session): Promise<number> {
   const cfg = spawnSync(hook, ["after"], { encoding: "utf8" });
   const cut = (cfg.stdout ?? "").trim().split("\n")[0] || "the configured cut";
 
-  if (s.splash) await (await import("./splash.js")).splash("simcli — play an agent CLI at a hook");
+  // THE WHOLE SESSION RUNS ON THE ALTERNATE SCREEN — banner at the top,
+  // conversation scrolling under it, the calling terminal handed back
+  // untouched at the end. `--inline` opts out for anyone piping this
+  // somewhere that would rather have plain lines.
+  const release = s.inline ? () => {} : takeTerminal();
+  try {
+  if (s.splash) {
+    const { banner } = await import("./banner.js");
+    console.log();
+    for (const l of banner("simcli — play an agent CLI at a hook")) console.log(l);
+  }
 
   console.log();
   console.log(bold(`${c.label}, played.`) + dim("  The turn is acted; the hook and the line are real."));
@@ -211,8 +224,12 @@ export async function repl(s: Session): Promise<number> {
     // detachment later has nothing to be long compared to.
     await spin(beat?.think ?? s.think);
 
-    for (const l of beat?.answer ?? burst(2, width, seed + 7)) {
-      console.log(wrapped(l, width));
+    // GENERATED FILLER ARRIVES ALREADY INDENTED; a written answer does
+    // not. Indenting both gave the scripted lines four spaces and the
+    // generated ones two — in the same session, one above the other.
+    const written = beat?.answer;
+    for (const l of written ?? burst(2, width, seed + 7)) {
+      console.log(written ? wrapped(l, width) : l);
       await sleep(l ? 45 : 120);
     }
     signOff(c!, (Date.now() - started) / 1000, c!.done?.[0] ?? "Answered");
@@ -288,6 +305,10 @@ export async function repl(s: Session): Promise<number> {
     rl.close();
   }
 
-  console.log(dim("\nleft the session. Anything detached is still running — `jbx ps`."));
+  } finally {
+    release();
+  }
+  // SAID ON THE CALLING TERMINAL, not on the screen that just vanished.
+  console.log(dim("left the session. Anything detached is still running — `jbx ps`."));
   return 0;
 }

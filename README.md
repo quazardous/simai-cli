@@ -109,6 +109,25 @@ missing, not when a bar is the wrong width.
 
 ## Try it by hand
 
+The session takes the terminal the way vim does — the whole CLI runs on
+the alternate screen, the header sits at the top and scrolls up as the
+conversation grows, and the calling terminal comes back untouched when
+you leave. `--inline` stays put instead; `--no-banner` drops the header.
+
+```
+──    ▄▄████▄▄    ──────────────────────────────────────────────────────
+·   ▄██████████▄    ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·
+   ████████▀▀
+● ███████▀              ●       ●       ●       ●       ●       ●
+· ███████▄              ·       ·       ·       ·       ·       ·
+   ████████▄▄
+·   ▀██████████▀    ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·
+──    ▀▀████▀▀    ──────────────────────────────────────────────────────
+
+  simcli — play an agent CLI at a hook
+```
+
+
 With no line to run, it stays in the session. **A bare line is a prompt**
 — you talk to it, it thinks for a beat and answers. Commands go through
 a named door:
