@@ -55,8 +55,16 @@ function shq(s: string): string {
   return `'${s.replace(/'/g, `'\\''`)}'`;
 }
 
-const HELP = `  <line>        run it the way the agent would — wrapped, and let go of
-                if it outlasts the cut
+// THE THREE DOORS ARE NAMED, INCLUDING THE DEFAULT ONE.
+//
+// `/fg` and `/bg` existed first, and their existence made the bare line
+// read as something else — an inert prompt rather than the door that
+// matters. The first person to try it reached for `/fg` to see a line
+// detach, which is the one door that never detaches. So the default has
+// a name too: two ways to say it, but symmetry that stops the list from
+// implying the wrong thing.
+const HELP = `  <line>        run it the way the agent would — wrapped, and let go
+  /run <line>   of if it outlasts the cut. THIS is the one that detaches.
   /say <text>   echo it — the short case, which never detaches
   /cat <file>   read a file, drawn the way a tool result is drawn
   /fg <line>    hold it to the end, however long it takes
@@ -97,7 +105,8 @@ export async function repl(s: Session): Promise<number> {
 
   console.log();
   console.log(bold(`${c.label}, played.`) + dim("  The turn is acted; the hook and the line are real."));
-  console.log(dim(`${cut.replace(/\.?$/, ".")} /help for what else you can type.`));
+  console.log(dim(`Type a command to run it the way the agent does — ${cut.replace(/\.?$/, "")}.`));
+  console.log(dim("`/fg` holds it instead, `/bg` hands it over. /help for the rest."));
   console.log();
 
   /** One typed line. Returns false when the session should end. */
@@ -124,7 +133,9 @@ export async function repl(s: Session): Promise<number> {
     let took = 0;
     const done = (_code: number, t: number) => (took = t);
 
-    if (input.startsWith("/fg ")) {
+    if (input.startsWith("/run ")) {
+      await agent(input.slice(5).trim(), done);
+    } else if (input.startsWith("/fg ")) {
       const line = input.slice(4).trim();
       console.log(`● Bash(${line})` + dim("   held on purpose"));
       await runDrawn(c!, { argv: [hook, "fg", "--", line] }, done);

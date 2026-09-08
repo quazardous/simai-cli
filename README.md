@@ -120,6 +120,7 @@ Claude Code, played.  The turn is acted; the hook and the line are real.
 30s before a long line detaches itself. /help for what else you can type.
 
 ❯ sleep 60; echo built          # wrapped — let go of if it outlasts the cut
+❯ /run sleep 60; echo built     # the same thing, said out loud
 ❯ /fg sleep 60; echo built      # held to the end, however long
 ❯ /bg sleep 60; echo built      # handed over before it starts
 ❯ /say hello                    # the short case, which never detaches
