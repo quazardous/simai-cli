@@ -7,6 +7,7 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { RULES, compare, normalise } from "./pane.js";
+import { CHROME, chrome } from "./chrome.js";
 
 const dim = (s: string) => `\x1b[2m${s}\x1b[0m`;
 const red = (s: string) => `\x1b[31m${s}\x1b[0m`;
@@ -111,4 +112,59 @@ export function compareFiles(realPath: string, playedPath: string, verbose: bool
   // missing a screen, not when a bar is ten blocks wide — one is work
   // undone, the other is work to finish.
   return v.missing.length === 0 ? 0 : 1;
+}
+
+/**
+ * THE CLIENT'S SCREEN, ON STDOUT.
+ *
+ * This exists so the borrowed decor can be MEASURED rather than
+ * admired. `simcli chrome claude > played.txt` and `simcli compare
+ * real.txt played.txt` is the whole loop that turns a constant somebody
+ * copied into a constant somebody checked.
+ *
+ * It prints, it does not animate: the spinner is shown as its frames
+ * because a comparison reads a still screen, and a frame that never
+ * appears in a capture would be filed as invention.
+ */
+export function playChrome(name: string | undefined): number {
+  if (!name) {
+    const rows = Object.entries(CHROME).map(([k, c]) => `  ${k.padEnd(9)} ${c.provenance.padEnd(9)} ${c.source}`);
+    console.error(`simcli chrome <client> — print a client's screen\n\n${rows.join("\n")}`);
+    console.error(dim("\n  borrowed = copied from another rendering, never checked against the real client"));
+    console.error(dim("  measured = capture and compare said so"));
+    return 2;
+  }
+  const c = chrome(name);
+  if (!c) {
+    // NOT A FALLBACK. Dressing one client in another's chrome would make
+    // a demo that looks like proof of a client it never touched.
+    console.error(`simcli: no chrome for ${JSON.stringify(name)} — have: ${Object.keys(CHROME).join(", ")}`);
+    console.error(dim("  a dialect without chrome is expected: the protocol is known, the screen is not"));
+    return 2;
+  }
+  // PLAIN WHEN PIPED. This output exists to be compared with a capture,
+  // and `capture-pane -p` returns no escapes at all.
+  const d = process.stdout.isTTY ? dim : (x: string) => x;
+  if (c.banner) for (const l of c.banner) console.log(l);
+  if (c.tips) {
+    console.log();
+    for (const t of c.tips) console.log(d(t));
+  }
+  if (c.timeline) {
+    for (const s of c.timeline) {
+      console.log();
+      // VERBATIM. The glyph belongs to the line, in the data, because a
+      // renderer that adds its own printed `● ● Poussé…` the moment the
+      // captured line already carried one — and the comparison caught it.
+      console.log(s.title);
+      for (const l of s.lines) console.log(d(l));
+      console.log(d(s.status));
+    }
+  }
+  if (c.placeholder) console.log(`\n❯ ${d(c.placeholder)}`);
+  if (c.status) {
+    console.log();
+    for (const l of c.status) console.log(d(l));
+  }
+  return 0;
 }

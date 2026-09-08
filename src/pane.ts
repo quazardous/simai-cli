@@ -18,6 +18,11 @@
 export type Rule = { name: string; what: RegExp; to: string | ((m: string) => string) };
 
 export const RULES: Rule[] = [
+  // COLOUR IS NOT CONTENT. `tmux capture-pane -p` gives plain text and
+  // `-e` keeps the escapes; a simulator writing to a pipe may do either.
+  // Without this, two identical screens differ on every line and the
+  // comparison reports total failure for a reason nobody can see.
+  { name: "ANSI escapes", what: /\x1b\[[0-9;]*m/g, to: "" },
   // A progress bar: keep how wide it is, drop how full it is.
   {
     name: "progress bar (width kept)",
@@ -38,7 +43,12 @@ export const RULES: Rule[] = [
   { name: "sizes", what: /\b\d+(\.\d+)?\s?[KMG]B\b/g, to: "<size>" },
   // Ticket ids and short hashes — real content, but they move every run.
   { name: "ticket ids", what: /#\d+\b/g, to: "#<id>" },
-  { name: "short hashes", what: /\b[0-9a-z]{6}\b(?=[\s.,)]|$)/g, to: "<hash>" },
+  // A HASH HAS A DIGIT IN IT. Without that clause this matched any
+  // six-letter lowercase word, and the first real screen it was pointed
+  // at came back with `expand`, `review` and `effort` masked as hashes —
+  // a normaliser quietly erasing English, which is the exact failure the
+  // header above warns about and the reason the rules are printed.
+  { name: "short hashes (must contain a digit)", what: /\b(?=[0-9a-z]{6}\b)[a-z]*[0-9][0-9a-z]*\b(?=[\s.,)]|$)/g, to: "<hash>" },
 ];
 
 export function normalise(text: string, rules: Rule[] = RULES): string[] {

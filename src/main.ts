@@ -14,7 +14,7 @@
 
 import { spawnSync } from "node:child_process";
 import { DIALECTS, dialect, payload, rewritten, type Dialect } from "./dialects.js";
-import { capture, compareFiles } from "./commands.js";
+import { capture, compareFiles, playChrome } from "./commands.js";
 
 type Options = {
   as: string;
@@ -32,6 +32,7 @@ function usage(): never {
   simcli --as <client> [--hook <path>] [--check] -- '<shell line>'
   simcli capture [--pane <target>] [-o <file>]
   simcli compare <real> <played> [--verbose]
+  simcli chrome <client>
 
   --as <client>   ${names}
   --hook <path>   the hook to call (default: jbx)
@@ -93,6 +94,7 @@ function main(): void {
     const o = argv.indexOf("-o");
     process.exit(capture(t >= 0 ? argv[t + 1] : undefined, o >= 0 ? argv[o + 1] : undefined));
   }
+  if (argv[0] === "chrome") process.exit(playChrome(argv[1]));
   if (argv[0] === "compare") {
     const files = argv.slice(1).filter((a) => !a.startsWith("-"));
     if (files.length !== 2) {

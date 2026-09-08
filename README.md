@@ -105,6 +105,43 @@ missing, not when a bar is the wrong width.
          57% of the words in common
 ```
 
+## The chrome, and what it is worth
+
+`src/chrome.ts` holds each client's decor — frames, banners, tips,
+status rows, and the grammar of a tool call. `simcli chrome <client>`
+prints it, so it can be fed straight to `compare`.
+
+Every block says where it came from, because **that is the only thing
+separating a screen somebody checked from a screen somebody drew**:
+
+| | |
+|---|---|
+| `measured` | `capture` and `compare` against the real client said so |
+| `borrowed` | copied from another rendering, never checked |
+
+Most of it arrived borrowed, from [busycode](https://github.com/monk-lee/busycode)
+(MIT, see `THIRD-PARTY.md`) — a browser app that draws these clients and
+runs no command. **The first client measured contradicted it**: busycode
+hangs tool results off `└` where Claude Code prints `⎿`, shows a
+present-tense `Symbioting…` where the real screen shows a finished
+`✻ Cogitated for 1m 13s · done 15:52`, and draws a
+`Model: … | Context: [████░░░]` bar that never appears. Claude is
+`measured` now; Gemini, Codex and OpenCode are not.
+
+Droid, Cursor and Copilot have a dialect and **no chrome at all**, and
+`chrome()` returns nothing for them rather than dressing them in
+Claude's. A demo in the wrong clothes looks like proof of a client it
+never touched.
+
+### What this comparison cannot tell you
+
+`compare` weighs a chrome dump against a whole captured pane, so the
+conversation in that pane — the part no simulator should reproduce —
+counts as absent every time. The verdict to read is **drifted**, and the
+`invented` list when the copy carries chrome the capture cropped. A
+comparison against the pane the lines were copied from proves
+transcription and nothing else.
+
 ## Usage
 
 ```console
@@ -118,6 +155,7 @@ simcli --as <client> [--hook <path>] [--check] [--quiet] -- '<shell line>'
 
 simcli capture [--pane <target>] [-o <file>]
 simcli compare <real> <played> [--verbose]
+simcli chrome <client>            # print the decor, to compare it
 ```
 
 It does not assume any particular hook. `--hook` takes a path, and the
@@ -139,4 +177,4 @@ TypeScript to build, **nothing at runtime**.
 agent runs and detaches the ones that turn out to be long. It is not
 required — the hook contract is the client's, not jbx's.
 
-MIT.
+MIT. Third-party material in `THIRD-PARTY.md`.
