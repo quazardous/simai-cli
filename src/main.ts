@@ -27,6 +27,7 @@ type Options = {
   speed: number;
   script: string;
   pace: number;
+  think: number;
 };
 
 function usage(): never {
@@ -49,12 +50,13 @@ function usage(): never {
   --speed <n>     how fast the acted parts play (default 1)
   --script <file> lines to play, exactly as a person would type them
   --pace <secs>   pause between scripted lines (default 0.6)
+  --think <secs>  how long the acted thinking phase lasts (default 3)
 `);
   process.exit(2);
 }
 
 function parse(argv: string[]): Options {
-  const o: Options = { as: "claude", hook: "jbx", line: "", why: "", check: false, quiet: false, play: false, speed: 1, script: "", pace: 0.6 };
+  const o: Options = { as: "claude", hook: "jbx", line: "", why: "", check: false, quiet: false, play: false, speed: 1, script: "", pace: 0.6, think: 3 };
   const rest = [...argv];
   while (rest.length) {
     const arg = rest.shift()!;
@@ -72,6 +74,7 @@ function parse(argv: string[]): Options {
       case "--speed": o.speed = Number(rest.shift()) || 1; break;
       case "--script": o.script = rest.shift() ?? usage(); break;
       case "--pace": o.pace = Number(rest.shift()) || 0; break;
+      case "--think": o.think = Number(rest.shift()) || 0; break;
       default: usage();
     }
   }
@@ -135,7 +138,7 @@ async function main(): Promise<void> {
     const script = o.script
       ? (await import("node:fs")).readFileSync(o.script, "utf8").split("\n")
       : undefined;
-    process.exit(await repl({ d, hook: o.hook, script, pace: o.pace }));
+    process.exit(await repl({ d, hook: o.hook, script, pace: o.pace, think: o.think }));
   }
 
   const raw = ask(o.hook, d.name, payload(d, o.line, o.why || o.line));

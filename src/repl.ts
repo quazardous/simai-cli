@@ -29,6 +29,7 @@ import { spawnSync } from "node:child_process";
 import { chrome, type Chrome } from "./chrome.js";
 import { runDrawn, signOff } from "./play.js";
 import { payload, rewritten, type Dialect } from "./dialects.js";
+import { burst } from "./lorem.js";
 
 const dim = (s: string) => `\x1b[2m${s}\x1b[0m`;
 const bold = (s: string) => `\x1b[1m${s}\x1b[0m`;
@@ -55,16 +56,19 @@ function shq(s: string): string {
   return `'${s.replace(/'/g, `'\\''`)}'`;
 }
 
-// THE THREE DOORS ARE NAMED, INCLUDING THE DEFAULT ONE.
+// A BARE LINE IS A PROMPT, AND EVERY DOOR IS NAMED.
 //
-// `/fg` and `/bg` existed first, and their existence made the bare line
-// read as something else — an inert prompt rather than the door that
-// matters. The first person to try it reached for `/fg` to see a line
-// detach, which is the one door that never detaches. So the default has
-// a name too: two ways to say it, but symmetry that stops the list from
-// implying the wrong thing.
-const HELP = `  <line>        run it the way the agent would — wrapped, and let go
-  /run <line>   of if it outlasts the cut. THIS is the one that detaches.
+// This started the other way round — a bare line ran as a command, and
+// only `/fg` and `/bg` were named. The first person to try it reached
+// for `/fg` to watch a line detach, `/fg` being the one door that never
+// detaches. Naming two of three made the third read as something it was
+// not.
+//
+// Talking is what a bare line SHOULD be in a client that plays an agent,
+// so it is that now, and all three doors carry a slash. The answer is
+// filler on purpose: see lorem.ts.
+const HELP = `  <text>        talk to it — you get filler back, and a pause
+  /run <line>   run it the way the agent would. THIS is the one that detaches.
   /say <text>   echo it — the short case, which never detaches
   /cat <file>   read a file, drawn the way a tool result is drawn
   /fg <line>    hold it to the end, however long it takes
@@ -86,6 +90,8 @@ export type Session = {
   script?: string[];
   /** Seconds between scripted lines, so a recording is watchable. */
   pace: number;
+  /** How long the acted thinking phase lasts. */
+  think: number;
 };
 
 export async function repl(s: Session): Promise<number> {
@@ -105,8 +111,8 @@ export async function repl(s: Session): Promise<number> {
 
   console.log();
   console.log(bold(`${c.label}, played.`) + dim("  The turn is acted; the hook and the line are real."));
-  console.log(dim(`Type a command to run it the way the agent does — ${cut.replace(/\.?$/, "")}.`));
-  console.log(dim("`/fg` holds it instead, `/bg` hands it over. /help for the rest."));
+  console.log(dim("Type anything to talk to it. `/run <line>` runs a command the way the"));
+  console.log(dim(`agent does — ${cut.replace(/\.?$/, "")}. /help for the rest.`));
   console.log();
 
   /** One typed line. Returns false when the session should end. */
@@ -154,11 +160,66 @@ export async function repl(s: Session): Promise<number> {
       console.log(dim(`  unknown: ${input.split(" ")[0]} — /help`));
       return true;
     } else {
-      await agent(input, done);
+      // TALKING. Acted end to end, and the only part of the session that
+      // is — which is exactly why the filler must not read as prose.
+      await say(input);
+      return true;
     }
     signOff(c!, took);
     console.log();
     return true;
+  }
+
+  /**
+   * AN ANSWER, STREAMED.
+   *
+   * A thinking beat, then filler a line at a time. The beat is what
+   * makes the rest of the session legible: a reader who has watched a
+   * two-second answer knows what the thirty-second one means.
+   */
+  async function say(prompt: string): Promise<void> {
+    const started = Date.now();
+    const width = Math.min((process.stdout.columns ?? 80) - 4, 92);
+    let seed = 0;
+    for (const ch of prompt) seed = (seed * 31 + ch.charCodeAt(0)) & 0x7fffffff;
+
+    // WHAT IT HEARD, FIRST. An agent that answers without repeating the
+    // ask is fine in a real session and unreadable in a recording, where
+    // the prompt has already scrolled by the time the answer lands.
+    console.log(`● You said ${JSON.stringify(prompt)}.`);
+    for (const l of burst(1, width, seed)) console.log(l);
+    console.log();
+
+    // THE PAUSE IS THE POINT. Somebody who has watched a three-second
+    // answer knows what the thirty-second one means; without it the
+    // detachment later has nothing to be long compared to.
+    await spin(s.think);
+
+    for (const l of burst(2, width, seed + 7)) {
+      console.log(l);
+      await sleep(l ? 45 : 120);
+    }
+    signOff(c!, (Date.now() - started) / 1000);
+    console.log();
+  }
+
+  /** The thinking phase, counted up on one rewritten line. */
+  async function spin(seconds: number): Promise<void> {
+    if (!process.stdout.isTTY) {
+      console.log(dim(`  ${c!.thinking?.[0] ?? "*"} ${c!.gerunds?.[0] ?? "Working"}… (${seconds}s)`));
+      await sleep(seconds * 1000);
+      return;
+    }
+    const word = c!.gerunds?.[0] ?? "Working";
+    const from = Date.now();
+    let frame = 0;
+    const live = setInterval(() => {
+      const e = Math.round((Date.now() - from) / 1000);
+      process.stdout.write(`\r\x1b[2K${dim(`  ${c!.spinner[frame++ % c!.spinner.length]} ${word}… (${e}s · esc to interrupt)`)}`);
+    }, 120);
+    await sleep(seconds * 1000);
+    clearInterval(live);
+    process.stdout.write("\r\x1b[2K");
   }
 
   /**

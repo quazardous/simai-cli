@@ -109,31 +109,40 @@ missing, not when a bar is the wrong width.
 
 ## Try it by hand
 
-With no line to run, it stays in the session — which is the only way to
-feel the difference between the three doors, because they are only
-meaningful next to each other:
+With no line to run, it stays in the session. **A bare line is a prompt**
+— you talk to it, it thinks for a beat and answers. Commands go through
+a named door:
 
 ```console
 $ simcli --as claude
 
-Claude Code, played.  The turn is acted; the hook and the line are real.
-30s before a long line detaches itself. /help for what else you can type.
+❯ explique le détachement
+● You said "explique le détachement".
+  Lorem ipsum dolor sit amet, consectetur adipiscing elit…
 
-❯ sleep 60; echo built          # wrapped — let go of if it outlasts the cut
-❯ /run sleep 60; echo built     # the same thing, said out loud
+  ✻ Cogitating… (3s)
+  Sed ut perspiciatis unde omnis iste natus error sit voluptatem…
+✻ Cogitated for 3s · done 17:33
+
+❯ /run sleep 60; echo built     # wrapped — let go of if it outlasts the cut
 ❯ /fg sleep 60; echo built      # held to the end, however long
 ❯ /bg sleep 60; echo built      # handed over before it starts
-❯ /say hello                    # the short case, which never detaches
-❯ /cat README.md                # a file read, drawn as a tool result
-❯ /ps  /list  /gain             # what jbx has to say about it
-❯ /exit
+❯ /say hello    /cat README.md  # a short command, and a file read
+❯ /ps  /list  /gain  /exit
 ```
 
-Typing the same `sleep 60` three ways is the whole lesson.
+Typing the same `sleep 60` three ways is the whole lesson, and the
+three-second answer above is what makes it legible: it is what the
+thirty-second one is long *compared to*.
+
+**The answer is filler on purpose.** Inventing plausible reasoning and
+printing it in a real client's shape is the one thing this must not do.
+Lorem ipsum cannot be mistaken for a model's output; a well-written
+English paragraph can.
 
 **There is no `--interactive` flag**, and there should not be: a line
 after `--` already says the run is one-shot, the way every other REPL
-decides it. A flag would be a second way of saying the same thing.
+decides it.
 
 ## Recording a demo: `--script`
 
