@@ -143,6 +143,14 @@ async function main(): Promise<void> {
     const o = argv.indexOf("-o");
     process.exit(capture(t >= 0 ? argv[t + 1] : undefined, o >= 0 ? argv[o + 1] : undefined));
   }
+  if (argv[0] === "compare") {
+    const files = argv.slice(1).filter((a) => !a.startsWith("-"));
+    if (files.length !== 2) {
+      console.error("simcli compare <real> <played> [--verbose]");
+      process.exit(2);
+    }
+    process.exit(compareFiles(files[0]!, files[1]!, argv.includes("--verbose")));
+  }
   if (argv[0] === "tools" || argv[0] === "doctor") {
     process.exit((await import("./tools.js")).doctor());
   }

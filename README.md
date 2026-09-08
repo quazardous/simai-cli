@@ -15,14 +15,23 @@ simcli --as claude --script demo/detach.txt \
 agg --font-family "Liberation Mono" demo/detach.cast demo/detach.gif
 ```
 
-Everything after `● Bash(` is real — the payload, the hook, the
-rewritten line, the wait, the moment it lets go. The cut is set to 10s
-here so the recording stays watchable; the default is 30s, and the
-scenario says so on screen rather than leaving you to find out.
+**Re-running that does not produce the same bytes, and cannot.** A rerun
+was measured against the shipped one: 47 lines of screen on each side,
+14 of them differing — the wall clock in the sign-off, the job id jbx
+minted, and how many spinner frames fitted in the same wait. Everything
+that is not a clock, an id or a frame count is identical.
 
-It goes through no `simcli cast` treatment on purpose: speeding it up
-would contradict the "10s" printed in the frame, and that is the one
-number a demo of a threshold must not blur.
+Which is what `simcli compare` is for, and the honest way to state it:
+
+```console
+$ simcli compare shipped.txt rebuilt.txt
+38 of 38 real lines exact (100%)
+faithful
+```
+
+Reproducible means *that* — the same screen, not the same file. A demo
+that claimed byte equality would be claiming its own timestamps do not
+move.
 
 ## Why `--check` is the point
 

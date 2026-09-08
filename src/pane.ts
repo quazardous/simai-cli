@@ -41,6 +41,14 @@ export const RULES: Rule[] = [
   },
   // Sizes a session picker prints.
   { name: "sizes", what: /\b\d+(\.\d+)?\s?[KMG]B\b/g, to: "<size>" },
+  // A CLOCK, WHICH IS THE MOST OBVIOUS DIFFERENCE BETWEEN TWO RUNS OF
+  // THE SAME SCREEN and the least interesting. Masked as HH:MM only:
+  // anything looser starts eating ratios and version numbers.
+  { name: "clock times", what: /\b\d{1,2}:\d{2}\b/g, to: "<HH:MM>" },
+  // A jbx job id. Named exactly rather than caught by the general hash
+  // rule below, which would have to be widened to 8 characters to see it
+  // and would then start masking ordinary words.
+  { name: "jbx job ids", what: /\bj[0-9a-f]{7}\b/g, to: "<job>" },
   // Ticket ids and short hashes — real content, but they move every run.
   { name: "ticket ids", what: /#\d+\b/g, to: "#<id>" },
   // A HASH HAS A DIGIT IN IT. Without that clause this matched any
