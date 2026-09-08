@@ -47,7 +47,7 @@ const KEY = 0.055;
 // machine (the phase had already flipped by the time anything printed)
 // and survived normalisation untouched. Transitions are therefore
 // recorded as their own entries on the same timeline.
-type Item =
+export type Item =
   | { at: number; kind: "out"; text: string }
   | { at: number; kind: "phase"; phase: Phase }
   | { at: number; kind: "typed"; text: string };
@@ -151,7 +151,73 @@ export function record(path: string, label: string, timing: Timing = "real", ret
  * was made to show — and it is exactly the gap a naive normaliser
  * flattens first, being the longest one in the file.
  */
-export function even(items: Item[], retype = true): Item[] {
+export type Retime = {
+  /** `even` caps the pauses a person made; `real` leaves them. */
+  time?: Timing;
+  /** Replace what the editor echoed with the line that was submitted. */
+  retype?: boolean;
+  /** And how that replacement arrives on screen. */
+  input?: "type" | "paste";
+  /** Keep only this window, in seconds of the original. */
+  from?: number;
+  to?: number;
+  /** Multiply what is left. 2 is twice as fast. */
+  speed?: number;
+};
+
+/**
+ * TRIM A RECORDING WITHOUT BREAKING THE SCREEN.
+ *
+ * A terminal recording is not a video: its frames are not pictures but
+ * INSTRUCTIONS, each depending on the ones before. Dropping the first
+ * ten seconds of a video loses ten seconds; dropping them here loses the
+ * banner, the colours it set, and whatever moved the cursor — and every
+ * frame after is drawn on the wrong screen.
+ *
+ * So nothing is dropped from the head. Everything before `from` is
+ * collapsed into ONE instantaneous event: the screen arrives already in
+ * the state it was in, and only the time is gone. `to` is the safe
+ * direction and simply stops.
+ */
+export function window(items: Item[], from = 0, to = Infinity): Item[] {
+  const before = items.filter((i) => i.at < from && i.kind === "out");
+  const kept = items.filter((i) => i.at >= from && i.at <= to);
+  const head: Item[] = before.length
+    ? [{ at: from, kind: "out", text: before.map((i) => (i as { text: string }).text).join("") }]
+    : [];
+  // AND IT STARTS AT ZERO. Keeping the original timestamps leaves the
+  // window beginning at, say, twelve seconds — a player then shows a
+  // blank screen for twelve seconds, and every later treatment is
+  // computed over a span that includes time nobody kept. Trimming twelve
+  // seconds off a twenty-three second cast gave nineteen, which is how
+  // this was noticed.
+  const all = [...head, ...kept];
+  const first = all[0]?.at ?? 0;
+  return all.map((i) => ({ ...i, at: i.at - first }));
+}
+
+/** Multiply every interval. Marks ride along; nothing reorders. */
+export function scale(items: Item[], by: number): Item[] {
+  if (!by || by === 1) return items;
+  const first = items[0]?.at ?? 0;
+  return items.map((i) => ({ ...i, at: first + (i.at - first) / by }));
+}
+
+/**
+ * EVERY TREATMENT, IN THE ORDER THAT MAKES THEM COMPOSE.
+ *
+ * Window first — there is no point evening out a stretch about to be
+ * thrown away, and capping before trimming would move the very
+ * timestamps the trim is expressed in. Speed last, because it is a
+ * multiplier over whatever survived.
+ */
+export function retime(items: Item[], o: Retime = {}): Item[] {
+  let out = window(items, o.from ?? 0, o.to ?? Infinity);
+  if (o.time === "even") out = even(out, o.retype ?? true, o.input ?? "type");
+  return scale(out, o.speed ?? 1);
+}
+
+export function even(items: Item[], retype = true, input: "type" | "paste" = "type"): Item[] {
   const out: Item[] = [];
   // AN OUTPUT CLOCK, NOT A RUNNING OFFSET. A human stretch is not
   // shortened but REPLACED — by a clean typing of the line that was
@@ -167,12 +233,20 @@ export function even(items: Item[], retype = true): Item[] {
   const flush = () => {
     if (submitted !== null) out.push({ at: t, kind: "typed", text: submitted });
     if (submitted !== null && retype) {
-      // The prompt, then the line, one character at a time. Whatever the
-      // editor echoed — corrections and all — is dropped with `held`.
+      // The prompt, then the line. Typed one character at a time, or
+      // arriving whole — WHICH IS A CONVERSION CHOICE, not something the
+      // session had to decide while it was being recorded. A command
+      // pasted from somewhere reads differently from one somebody typed,
+      // and which of the two a demo wants is known afterwards.
       out.push({ at: t, kind: "out", text: "❯ " });
-      for (const ch of submitted) {
+      if (input === "paste") {
         t += KEY;
-        out.push({ at: t, kind: "out", text: ch });
+        out.push({ at: t, kind: "out", text: submitted });
+      } else {
+        for (const ch of submitted) {
+          t += KEY;
+          out.push({ at: t, kind: "out", text: ch });
+        }
       }
       t += KEY;
       out.push({ at: t, kind: "out", text: "\n" });

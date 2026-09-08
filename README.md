@@ -201,6 +201,43 @@ The alternate-screen escapes are deliberately left **outside** the cast.
 A player replaying them would take over the viewer's terminal and then
 wipe the playback on restore.
 
+### Treating it afterwards
+
+The recording keeps the truth; the conversion decides how it reads. Both
+`m` (whose silence this is) and `i` (the line that was submitted) are in
+the file, so the same capture can be treated any number of times without
+asking anybody to perform the demo again.
+
+```console
+$ simcli cast raw.cast -o demo.cast --time even --from 12 --speed 1.5
+raw.cast → demo.cast: 23.1s → 7.4s
+```
+
+| | |
+|---|---|
+| `--time even` | cap the pauses **you** made |
+| `--keep-typos` | keep the editor's corrections instead of re-typing |
+| `--paste` | the input arrives whole instead of letter by letter |
+| `--from` / `--to` | the window, in seconds of the original |
+| `--speed <n>` | 2 is twice as fast |
+
+**A command's own time is never rewritten**, whatever else is asked for.
+The longest silence in a recording is a build running, and it is the
+demonstration — a normaliser that flattens the biggest number it finds
+destroys the only thing worth filming.
+
+**Nothing is dropped from the head.** A terminal recording is not a
+video: its frames are instructions, each depending on the ones before.
+Dropping the first ten seconds of a video loses ten seconds; dropping
+them here loses the banner, the colours it set and whatever moved the
+cursor, and every frame after is drawn on the wrong screen. So `--from`
+collapses everything earlier into one instant — the screen arrives in the
+state it was in, and only the time is gone.
+
+asciinema 3 reads these files: `asciinema convert` takes the v2 to v3
+with every `m` and `i` intact (measured, 10 and 2 respectively), so there
+is no reason to emit v3 here.
+
 ### Size
 
 Without `--size` the recording takes the window's own size — a session
@@ -388,6 +425,7 @@ like a broken toolchain rather than a wrong name.
 ## Build
 
 ```console
+npm test               # 14 tests, no dependency beyond Node
 ./install.sh --check   # what it hands off to, and what is missing
 ./install.sh           # install those, after asking
 ```

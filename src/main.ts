@@ -48,7 +48,7 @@ function usage(): never {
   simcli compare <real> <played> [--verbose]
   simcli chrome <client>
   simcli tools                       what it hands off to, and what is missing
-  simcli cast <in.cast> [-o <out>] [--time even] [--keep-typos]
+  simcli cast <in.cast> [-o <out>] [--time even] [--from|--to|--speed|--paste]
 
   --as <client>   ${names}
   --hook <path>   the hook to call (default: jbx)
@@ -144,32 +144,45 @@ async function main(): Promise<void> {
   if (argv[0] === "chrome") process.exit(playChrome(argv[1]));
   if (argv[0] === "cast") {
     // THE TREATMENT IS A CONVERSION, NOT A RECORDING OPTION. Record once
-    // and honestly; decide afterwards how it should read.
-    const { load, save, even } = await import("./cast.js");
+    // and honestly; decide afterwards how it should read, as many times
+    // as it takes, without asking anybody to perform the demo again.
+    const { load, save, retime } = await import("./cast.js");
     const files = argv.slice(1).filter((a) => !a.startsWith("-"));
-    const at = argv.indexOf("-o");
     const input = files[0];
     if (!input) {
-      console.error("simcli cast <in.cast> [-o <out.cast>] [--time even] [--keep-typos]");
+      console.error(`simcli cast <in.cast> [-o <out.cast>] [options]
+
+  --time real|even   cap the pauses a person made; a command's own time
+                     is never rewritten, whatever else is asked for
+  --keep-typos       keep the editor's corrections instead of re-typing
+  --paste            the input arrives whole instead of typed
+  --from <secs>      start here — earlier output is kept, collapsed, so
+  --to <secs>        the screen is right; stop there
+  --speed <n>        2 is twice as fast
+`);
       process.exit(2);
     }
+    const flag = (name: string) => {
+      const at = argv.indexOf(name);
+      return at >= 0 ? Number(argv[at + 1]) : undefined;
+    };
     const { header, items } = load(input);
-    const done = argv.includes("--time") && argv[argv.indexOf("--time") + 1] === "even"
-      ? even(items, !argv.includes("--keep-typos"))
-      : items;
+    const done = retime(items, {
+      time: argv.includes("--time") && argv[argv.indexOf("--time") + 1] === "even" ? "even" : "real",
+      retype: !argv.includes("--keep-typos"),
+      input: argv.includes("--paste") ? "paste" : "type",
+      from: flag("--from"),
+      to: flag("--to"),
+      speed: flag("--speed"),
+    });
+    const at = argv.indexOf("-o");
     const out = at >= 0 ? argv[at + 1]! : input;
     save(out, header, done);
-    const was = items.filter((i) => i.kind === "out").length;
-    console.error(`${input} → ${out}: ${was} output events, ${done[done.length - 1]?.at.toFixed(1) ?? 0}s`);
+    const seconds = (list: typeof items) => list.filter((i) => i.kind === "out").at(-1)?.at ?? 0;
+    console.error(
+      `${input} → ${out}: ${seconds(items).toFixed(1)}s → ${seconds(done).toFixed(1)}s`,
+    );
     process.exit(0);
-  }
-  if (argv[0] === "compare") {
-    const files = argv.slice(1).filter((a) => !a.startsWith("-"));
-    if (files.length !== 2) {
-      console.error("simcli compare <real> <played> [--verbose]");
-      process.exit(2);
-    }
-    process.exit(compareFiles(files[0]!, files[1]!, argv.includes("--verbose")));
   }
 
   const o = parse(argv);
