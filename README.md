@@ -346,6 +346,38 @@ It does not assume any particular hook. `--hook` takes a path, and the
 contract it expects is the one every client above already uses: one
 process, the payload on stdin, the answer on stdout.
 
+## What it needs
+
+**To run: nothing.** TypeScript to build, and Node — no runtime
+dependency at all.
+
+Three verbs hand off to a tool simcli does not carry, and `simcli tools`
+says which of them this machine has:
+
+```console
+$ simcli tools
+simcli needs nothing to run. These are for what it hands off to:
+
+  ✓ tmux       simcli capture — reading a real client's pane
+  ✗ agg        turning a .cast into a GIF
+    cargo install --locked --git https://github.com/asciinema/agg
+    or a prebuilt binary: https://github.com/asciinema/agg/releases
+  ✓ asciinema  playing or sharing a .cast
+  ✓ ffmpeg     turning that GIF into an MP4
+
+1 missing, dnf on this machine
+```
+
+The install line is built from the package manager the machine actually
+has — dnf, apt-get, pacman, zypper or brew — not from the one this was
+written on. Naming the wrong one is worse than saying nothing, because
+it gets tried.
+
+**`agg` is named by its repository, never as a bare crate.** `cargo
+install agg` resolves to an unrelated crates.io library at 0.1.0 with no
+binary in it and fails with *"there is nothing to install"*, which reads
+like a broken toolchain rather than a wrong name.
+
 ## Build
 
 ```console
@@ -353,7 +385,7 @@ npm install
 npm run build
 ```
 
-TypeScript to build, **nothing at runtime**.
+TypeScript to build, **nothing at runtime**. Node 18 or later.
 
 ## Written for
 

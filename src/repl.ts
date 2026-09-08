@@ -364,10 +364,7 @@ export async function repl(s: Session): Promise<number> {
   console.log(dim("left the session. Anything detached is still running — `jbx ps`."));
   if (s.capture) {
     const { afterwards } = await import("./cast.js");
-    const { existsSync } = await import("node:fs");
-    const has = (bin: string) =>
-      (process.env.PATH ?? "").split(":").some((p) => p && existsSync(`${p}/${bin}`));
-    for (const l of afterwards(s.capture, has)) console.log(dim(l));
+    for (const l of afterwards(s.capture)) console.log(dim(l));
   }
   return 0;
 }

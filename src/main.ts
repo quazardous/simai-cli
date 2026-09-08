@@ -47,6 +47,7 @@ function usage(): never {
   simcli capture [--pane <target>] [-o <file>]
   simcli compare <real> <played> [--verbose]
   simcli chrome <client>
+  simcli tools                       what it hands off to, and what is missing
   simcli cast <in.cast> [-o <out>] [--time even] [--keep-typos]
 
   --as <client>   ${names}
@@ -136,6 +137,9 @@ async function main(): Promise<void> {
     const t = argv.indexOf("--pane");
     const o = argv.indexOf("-o");
     process.exit(capture(t >= 0 ? argv[t + 1] : undefined, o >= 0 ? argv[o + 1] : undefined));
+  }
+  if (argv[0] === "tools" || argv[0] === "doctor") {
+    process.exit((await import("./tools.js")).doctor());
   }
   if (argv[0] === "chrome") process.exit(playChrome(argv[1]));
   if (argv[0] === "cast") {
@@ -235,9 +239,7 @@ async function main(): Promise<void> {
     const code = await play({ client: d.name, prompt: o.why || o.line, line: o.line, ran: line ?? o.line, speed: o.speed });
     stopCast?.();
     if (o.capture) {
-      const { existsSync } = await import("node:fs");
-      const has = (bin: string) => (process.env.PATH ?? "").split(":").some((p) => p && existsSync(`${p}/${bin}`));
-      for (const l of afterwards(o.capture, has)) console.log(l);
+      for (const l of afterwards(o.capture)) console.log(l);
     }
     process.exit(code);
   }

@@ -18,6 +18,7 @@
 // the output from the program's intentions records the intentions.
 
 import { closeSync, openSync, readFileSync, writeSync } from "node:fs";
+import { TOOLS, howTo, onPath } from "./tools.js";
 
 export type Stop = () => void;
 
@@ -226,21 +227,25 @@ export function even(items: Item[], retype = true): Item[] {
 }
 
 /**
- * WHAT TO RUN NEXT, AND WHAT TO INSTALL IF IT IS MISSING.
+ * WHAT TO RUN NEXT, AND HOW TO GET IT IF IT IS NOT HERE.
  *
- * Printed once, with the file. A capture format nobody can turn into a
- * video is a capture format nobody uses, and leaving the reader to
- * search for the converter is where that happens.
+ * Reads `tools.ts` rather than carrying its own install lines: a message
+ * that names a package manager the machine does not have is a wrong
+ * instruction delivered with confidence, and it gets tried.
  */
-export function afterwards(path: string, has: (bin: string) => boolean): string[] {
+export function afterwards(path: string): string[] {
   const gif = path.replace(/\.cast$/, "") + ".gif";
-  const out: string[] = [`recorded → ${path}`];
-  if (has("agg")) out.push(`  agg ${path} ${gif}`);
-  else out.push(`  cargo install --locked agg   # then: agg ${path} ${gif}`);
-  if (has("asciinema")) out.push(`  asciinema play ${path}`);
-  else out.push(`  sudo dnf install asciinema   # then: asciinema play ${path}`);
-  if (has("ffmpeg")) out.push(`  ffmpeg -i ${gif} ${gif.replace(/\.gif$/, ".mp4")}`);
-  return out;
+  const mp4 = gif.replace(/\.gif$/, ".mp4");
+  const line = (bin: string, cmd: string) => {
+    const tool = TOOLS.find((t) => t.bin === bin)!;
+    return onPath(bin) ? `  ${cmd}` : `  ${cmd}   ← needs ${bin}: ${howTo(tool)}`;
+  };
+  return [
+    `recorded → ${path}`,
+    line("agg", `agg ${path} ${gif}`),
+    line("ffmpeg", `ffmpeg -i ${gif} ${mp4}`),
+    line("asciinema", `asciinema play ${path}`),
+  ];
 }
 
 /**
