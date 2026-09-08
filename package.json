@@ -4,6 +4,9 @@
   "description": "Play an agent CLI at a hook: send what Claude Code, Gemini, Cursor, Droid or Copilot really send, and run what comes back.",
   "license": "MIT",
   "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
   "bin": {
     "simcli": "dist/main.js"
   },
