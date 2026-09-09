@@ -7,9 +7,11 @@
   },
   "files": [
     "dist",
-    "demo",
+    "!dist/*.test.js",
+    "demo/*.txt",
     "install.sh",
     "CLIENTS.md",
+    "RECORDING.md",
     "THIRD-PARTY.md"
   ],
   "repository": {
@@ -31,5 +33,16 @@
   "devDependencies": {
     "typescript": "^5.9.0",
     "@types/node": "^22.0.0"
-  }
+  },
+  "keywords": [
+    "claude-code",
+    "gemini-cli",
+    "cursor",
+    "copilot-cli",
+    "hook",
+    "agent",
+    "terminal",
+    "asciicast",
+    "demo"
+  ]
 }
