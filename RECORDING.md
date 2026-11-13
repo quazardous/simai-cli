@@ -133,6 +133,41 @@ Each door says what it is doing, in its own word: `/run` is `Running…`,
 a bare prompt is the client's own `Cogitating…`. A spinner that says the
 wrong thing is worse than none, because it gets read.
 
+### A scene that is not about a hook
+
+A screenshot of an agent at work is mostly reads and edits, and needs
+neither jbx nor anything to run:
+
+```
+fix the off-by-one in the pager
+    Found it: the last page was dropped.
+
+/tool Read src/pager.rs
+    Read 42 lines
+
+/tool Update src/pager.rs
+    Updated src/pager.rs with 1 addition and 1 removal
+      13 -     n / SIZE
+      13 +     n.div_ceil(SIZE)
+```
+
+```console
+$ simcli --as claude --script scene.txt --pace 0 --think 0 \
+         --inline --no-banner --hook none --stay | cat
+```
+
+- **`/tool <Name> <arg>`** draws `● Name(arg)` and runs nothing; the lines
+  under it are its result, with indentation past the first line kept and
+  `+`/`-` lines coloured as a diff.
+- **`--hook none`** runs `/run` lines as they are, and nothing on screen
+  names jbx.
+- **`--no-banner`** drops the welcome lines too, so the capture holds the
+  session alone.
+- **`--stay`** ends on an idle `❯` instead of leaving, until the input
+  closes — the agent waiting for its next line.
+- A written answer opens on `●` and is not echoed back; piped, the
+  thinking pause leaves no spinner text behind.
+
 ## Is the copy faithful? Measure it
 
 

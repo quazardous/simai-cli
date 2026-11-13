@@ -60,6 +60,10 @@ export async function runDrawn(
   // particular is not thinking, it is refusing to let go. A spinner that
   // says the wrong thing is worse than no spinner, because it is read.
   word = "Working",
+  // ALREADY HUNG: something has been printed under the call with its
+  // `⎿` — a note from the hook — so the output continues under it
+  // rather than hanging a second one.
+  hung = false,
 ): Promise<number> {
   const env = { ...process.env };
   // See the header: the scene is about being the OUTER wrapper.
@@ -80,9 +84,10 @@ export async function runDrawn(
     );
   }, 120);
 
+  const under = hanger(hung);
   const show = (chunk: Buffer) => {
     if (process.stdout.isTTY) process.stdout.write(`\r${CSI}2K`);
-    for (const l of chunk.toString().replace(/\n$/, "").split("\n")) console.log(dim(`  ⎿  ${l}`));
+    for (const l of chunk.toString().replace(/\n$/, "").split("\n")) console.log(dim(under(l)));
   };
   child.stdout.on("data", show);
   child.stderr.on("data", show);
@@ -94,6 +99,21 @@ export async function runDrawn(
   const took = (Date.now() - started) / 1000;
   onDone?.(code, took);
   return code;
+}
+
+/**
+ * WHAT HANGS UNDER A TOOL CALL. Claude Code puts `⎿` before the first
+ * line of a result and indents the rest to match; a `⎿` on every line
+ * reads as a list of separate results. Stateful across chunks, because a
+ * command's output arrives in as many pieces as the pipe likes.
+ */
+export function hanger(hung = false): (line: string) => string {
+  let first = !hung;
+  return (line) => {
+    const lead = first ? "  ⎿  " : "     ";
+    first = false;
+    return `${lead}${line}`;
+  };
 }
 
 export function signOff(c: Chrome, took: number, past = "Ran"): void {

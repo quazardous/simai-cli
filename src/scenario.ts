@@ -31,6 +31,8 @@ export type Beat = {
   think?: number;
   /** Appear at once instead of being typed out. */
   paste?: boolean;
+  /** How far the first answer line was indented — the baseline. */
+  indent?: number;
 };
 
 export function parse(text: string): Beat[] {
@@ -78,7 +80,13 @@ export function parse(text: string): Beat[] {
       last.answer ??= [];
       if (pending) last.answer.push("");
       pending = false;
-      last.answer.push(body);
+      // INDENTATION PAST THE FIRST LINE'S IS KEPT. A diff under `/tool`
+      // or a nested list means nothing flattened; the baseline is the
+      // first answer line, so an answer indented by four as a whole
+      // reads exactly as it did when every line was trimmed.
+      const lead = line.length - line.trimStart().length;
+      last.indent ??= lead;
+      last.answer.push(" ".repeat(Math.max(0, lead - last.indent)) + body);
       continue;
     }
     pending = false;

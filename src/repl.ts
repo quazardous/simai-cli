@@ -29,7 +29,7 @@ import { takeTerminal } from "./screen.js";
 import { mark, typed, type Timing } from "./cast.js";
 import { spawnSync } from "node:child_process";
 import { chrome, type Chrome } from "./chrome.js";
-import { runDrawn, signOff } from "./play.js";
+import { hanger, runDrawn, signOff } from "./play.js";
 import { payload, rewritten, type Dialect } from "./dialects.js";
 import { burst } from "./lorem.js";
 import { type Beat } from "./scenario.js";
@@ -74,6 +74,9 @@ const HELP = `  <text>        talk to it — you get filler back, and a pause
   /run <line>   run it the way the agent would. THIS is the one that detaches.
   /say <text>   echo it — the short case, which never detaches
   /cat <file>   read a file, drawn the way a tool result is drawn
+  /tool <Name> <arg>   draw a tool call that runs nothing: Read, Update,
+                Write, Grep… In a script, the lines indented under it
+                are its result; \`+\`/\`-\` lines are drawn as a diff.
   /fg <line>    hold it to the end, however long it takes
   /bg <line>    hand it over before it starts
   /ps           what is running right now
@@ -107,6 +110,8 @@ export type Session = {
   paste: boolean;
   /** Keep the editor's corrections in the recording. */
   keepTypos: boolean;
+  /** End a script on an idle prompt instead of leaving. */
+  stay: boolean;
 };
 
 export async function repl(s: Session): Promise<number> {
@@ -121,8 +126,10 @@ export async function repl(s: Session): Promise<number> {
   // THE CUT IS JBX'S TO STATE. Asking it means this banner cannot drift
   // from the setting actually in force — which a hardcoded "30s" would,
   // silently, the first time somebody changed it.
-  const cfg = spawnSync(hook, ["after"], { encoding: "utf8" });
-  const cut = (cfg.stdout ?? "").trim().split("\n")[0] || "the configured cut";
+  // NO HOOK, NO CUT: `--hook none` is a scene that is not about one.
+  const none = hook === "none";
+  const cfg = none ? undefined : spawnSync(hook, ["after"], { encoding: "utf8" });
+  const cut = (cfg?.stdout ?? "").trim().split("\n")[0] || "the configured cut";
 
   // THE WHOLE SESSION RUNS ON THE ALTERNATE SCREEN — banner at the top,
   // conversation scrolling under it, the calling terminal handed back
@@ -142,10 +149,16 @@ export async function repl(s: Session): Promise<number> {
     for (const l of banner("simcli — play an agent CLI at a hook")) console.log(l);
   }
 
-  console.log();
-  console.log(bold(`${c.label}, played.`) + dim("  The turn is acted; the hook and the line are real."));
-  console.log(dim("Type anything to talk to it. `/run <line>` runs a command the way the"));
-  console.log(dim(`agent does — ${cut.replace(/\.?$/, "")}. /help for the rest.`));
+  // `--no-banner` IS A CAPTURE ASKING FOR THE SESSION ALONE, and the
+  // welcome is as much ours as the header is: a real client prints
+  // neither, so a screenshot that keeps them shows a tool, not an agent.
+  if (s.splash) {
+    console.log();
+    console.log(bold(`${c.label}, played.`) + dim("  The turn is acted; the hook and the line are real."));
+    console.log(dim("Type anything to talk to it. `/run <line>` runs a command the way the"));
+    console.log(dim(none ? "agent does — no hook here, so it runs as it is. /help for the rest."
+                         : `agent does — ${cut.replace(/\.?$/, "")}. /help for the rest.`));
+  }
   console.log();
 
   /** One typed line. Returns false when the session should end. */
@@ -158,6 +171,10 @@ export async function repl(s: Session): Promise<number> {
     }
     if (input.startsWith("/wait ")) {
       await sleep(Number(input.slice(6).trim()) * 1000 || 0);
+      return true;
+    }
+    if (PLAIN[input] && none) {
+      console.log(dim(`  ${input} asks the hook, and there is none here`));
       return true;
     }
     if (PLAIN[input]) {
@@ -182,12 +199,12 @@ export async function repl(s: Session): Promise<number> {
       const line = input.slice(4).trim();
       console.log(`● Bash(${line})` + dim("   held on purpose"));
       [now, then] = ["Waiting", "Waited"];
-      await runDrawn(c!, { argv: [hook, "fg", "--", line] }, done, now);
+      await runDrawn(c!, none ? { line } : { argv: [hook, "fg", "--", line] }, done, now);
     } else if (input.startsWith("/bg ")) {
       const line = input.slice(4).trim();
       console.log(`● Bash(${line})` + dim("   handed over before it starts"));
       [now, then] = ["Handing over", "Handed over in"];
-      await runDrawn(c!, { argv: [hook, "queue", intentOf(line), "--", line] }, done, now);
+      await runDrawn(c!, none ? { line } : { argv: [hook, "queue", intentOf(line), "--", line] }, done, now);
     } else if (input.startsWith("/say ") || input.startsWith("/cat ")) {
       // SHORTHANDS FOR THE TWO GESTURES A DEMO KEEPS NEEDING: something
       // that prints and something that reads. Both take the agent path,
@@ -195,6 +212,9 @@ export async function repl(s: Session): Promise<number> {
       // back — the cut only fires on what actually runs long.
       const rest = input.slice(5).trim();
       await agent(input.startsWith("/say ") ? `echo ${shq(rest)}` : `cat ${shq(rest)}`, done, now);
+    } else if (input.startsWith("/tool ")) {
+      tool(input.slice(6).trim(), beat?.answer ?? []);
+      return true;
     } else if (input.startsWith("/")) {
       console.log(dim(`  unknown: ${input.split(" ")[0]} — /help`));
       return true;
@@ -222,10 +242,11 @@ export async function repl(s: Session): Promise<number> {
     let seed = 0;
     for (const ch of prompt) seed = (seed * 31 + ch.charCodeAt(0)) & 0x7fffffff;
 
-    // WHAT IT HEARD, FIRST. An agent that answers without repeating the
-    // ask is fine in a real session and unreadable in a recording, where
-    // the prompt has already scrolled by the time the answer lands.
-    console.log(`● You said ${JSON.stringify(prompt)}.`);
+    // WHAT IT HEARD, FIRST — for filler only. Lorem under a prompt
+    // that has scrolled away says nothing about what it answers, so the
+    // echo ties them together. A WRITTEN answer speaks for itself, and
+    // there the echo reads as a bug: no real client repeats the ask.
+    if (!beat?.answer) console.log(`● You said ${JSON.stringify(prompt)}.`);
     // A WRITTEN ANSWER REPLACES THE FILLER ENTIRELY — including the
     // opening line. Half-written and half-lorem would read as a glitch,
     // and the whole reason to write one is to be read.
@@ -243,11 +264,42 @@ export async function repl(s: Session): Promise<number> {
     // not. Indenting both gave the scripted lines four spaces and the
     // generated ones two — in the same session, one above the other.
     const written = beat?.answer;
+    // THE ANSWER OPENS ON THE CLIENT'S BULLET, as a real one does. The
+    // echo used to carry it; without the echo the first written line
+    // takes it, and the rest keep the two-space indent under it.
+    let opened = false;
     for (const l of written ?? burst(2, width, seed + 7)) {
-      console.log(written ? wrapped(l, width) : l);
+      const lead = written && l && !opened ? "● " : undefined;
+      if (lead) opened = true;
+      console.log(written ? (lead ? lead + l : wrapped(l, width)) : l);
       await sleep(l ? 45 : 120);
     }
     signOff(c!, (Date.now() - started) / 1000, c!.done?.[0] ?? "Answered");
+    console.log();
+  }
+
+  /**
+   * A TOOL CALL THAT RUNS NOTHING.
+   *
+   * A scene of an agent that codes is mostly reads and edits, not shell
+   * lines — and none of those need to happen for the screen to be true.
+   * `/tool Update src/x.rs` draws `● Update(src/x.rs)`; the lines written
+   * under it in the script are its result, hung the way a result hangs,
+   * with `+` and `-` lines coloured as the client colours a diff.
+   */
+  function tool(spec: string, body: string[]): void {
+    const at = spec.indexOf(" ");
+    const [name, arg] = at < 0 ? [spec, ""] : [spec.slice(0, at), spec.slice(at + 1).trim()];
+    console.log(`● ${name}${arg ? `(${arg})` : ""}`);
+    const under = hanger();
+    for (const l of body) {
+      const drawn = under(l);
+      // A LINE NUMBER MAY COME FIRST — `13 +  …` is how the client
+      // numbers a diff — so the sign is looked for after it.
+      if (/^\s*(\d+\s+)?\+/.test(l)) console.log(`\x1b[32m${drawn}\x1b[0m`);
+      else if (/^\s*(\d+\s+)?-/.test(l)) console.log(`\x1b[31m${drawn}\x1b[0m`);
+      else console.log(dim(drawn));
+    }
     console.log();
   }
 
@@ -284,8 +336,10 @@ export async function repl(s: Session): Promise<number> {
 
   /** The thinking phase, counted up on one rewritten line. */
   async function spin(seconds: number): Promise<void> {
-    if (!process.stdout.isTTY) {
-      console.log(dim(`  ${c!.thinking?.[0] ?? "*"} ${c!.gerunds?.[0] ?? "Working"}… (${seconds}s)`));
+    // NO TERMINAL, NO SPINNER. Without `\r` to rewrite it, the line
+    // stayed in the output as text — a capture piped through `cat` kept a
+    // frozen "Cogitating… (2s)" in every answer. The pause is kept.
+    if (!process.stdout.isTTY || seconds <= 0) {
       await sleep(seconds * 1000);
       return;
     }
@@ -309,6 +363,11 @@ export async function repl(s: Session): Promise<number> {
    * decided — including nothing, if it was not watching this tool.
    */
   async function agent(line: string, done: (c: number, t: number) => void, word: string): Promise<void> {
+    if (none) {
+      console.log(`● Bash(${line})`);
+      await runDrawn(c!, { line }, done, word);
+      return;
+    }
     const r = spawnSync(hook, ["hook", d.name], {
       input: JSON.stringify(payload(d, line, line)),
       encoding: "utf8",
@@ -325,7 +384,7 @@ export async function repl(s: Session): Promise<number> {
     }
     console.log(`● Bash(${line})`);
     if (ran === line) console.log(dim("  ⎿  the hook did not rewrite this one"));
-    await runDrawn(c!, { line: ran }, done, word);
+    await runDrawn(c!, { line: ran }, done, word, ran === line);
   }
 
   if (s.script) {
@@ -335,6 +394,17 @@ export async function repl(s: Session): Promise<number> {
       await type(beat.input, beat.paste ?? s.paste);
       if (!(await handle(beat.input, beat))) break;
       await sleep(s.pace * 1000);
+    }
+    // A CAPTURE ENDS ON A CLIENT WAITING FOR ITS NEXT LINE, not on one
+    // that has left. Held until the input closes (Ctrl-D) or the process
+    // is stopped — whoever took the screenshot decides when.
+    if (s.stay) {
+      mark("human");
+      process.stdout.write("❯ ");
+      await new Promise<void>((done) => {
+        process.stdin.on("end", done).on("close", done).on("error", done).resume();
+      });
+      process.stdout.write("\n");
     }
   } else {
     const rl = createInterface({ input: process.stdin, output: process.stdout, prompt: "❯ " });
@@ -361,7 +431,7 @@ export async function repl(s: Session): Promise<number> {
     release();
   }
   // SAID ON THE CALLING TERMINAL, not on the screen that just vanished.
-  console.log(dim("left the session. Anything detached is still running — `jbx ps`."));
+  console.log(dim(none ? "left the session." : "left the session. Anything detached is still running — `jbx ps`."));
   if (s.capture) {
     const { afterwards } = await import("./cast.js");
     for (const l of afterwards(s.capture)) console.log(dim(l));

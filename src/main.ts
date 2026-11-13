@@ -35,6 +35,7 @@ type Options = {
   timing: string;
   paste: boolean;
   keepTypos: boolean;
+  stay: boolean;
 };
 
 function usage(): never {
@@ -53,7 +54,8 @@ function usage(): never {
 
 WHICH CLIENT, AND WHAT TO DO
   --as <client>   ${names}
-  --hook <path>   the hook to call (default: jbx)
+  --hook <path>   the hook to call (default: jbx); \`none\` runs lines
+                  as they are, for a scene that is not about a hook
   --why <text>    the description the client would have asked the model for
   --check         say whether the line was rewritten, and exit 1 if not
   --play          draw the whole turn: prompt, spinner, output, sign-off
@@ -64,7 +66,8 @@ HOW IT PLAYS
   --speed <n>     how fast the acted parts of --play run (default 1)
   --paste         scripted lines appear at once instead of typed
   --quiet         no chrome, just the protocol
-  --no-banner     skip the header
+  --no-banner     skip the header and the welcome lines
+  --stay          end a script on an idle prompt instead of leaving
   --inline        stay on the calling terminal, do not take the screen
 
 RECORDING
@@ -79,7 +82,7 @@ RECORDING
 }
 
 function parse(argv: string[]): Options {
-  const o: Options = { as: "claude", hook: "jbx", line: "", why: "", check: false, quiet: false, play: false, speed: 1, script: "", pace: 0.6, think: 3, splash: true, inline: false, capture: "", size: "", timing: "real", paste: false, keepTypos: false };
+  const o: Options = { as: "claude", hook: "jbx", line: "", why: "", check: false, quiet: false, play: false, speed: 1, script: "", pace: 0.6, think: 3, splash: true, inline: false, capture: "", size: "", timing: "real", paste: false, keepTypos: false, stay: false };
   const rest = [...argv];
   while (rest.length) {
     const arg = rest.shift()!;
@@ -105,6 +108,7 @@ function parse(argv: string[]): Options {
       case "--time": o.timing = rest.shift() ?? usage(); break;
       case "--paste": o.paste = true; break;
       case "--keep-typos": o.keepTypos = true; break;
+      case "--stay": o.stay = true; break;
       default: usage();
     }
   }
@@ -222,7 +226,14 @@ async function main(): Promise<void> {
     const script = o.script
       ? (await import("./scenario.js")).parse((await import("node:fs")).readFileSync(o.script, "utf8"))
       : undefined;
-    process.exit(await repl({ d, hook: o.hook, script, pace: o.pace, think: o.think, splash: o.splash, inline: o.inline, capture: o.capture, timing: o.timing === "even" ? "even" : "real", paste: o.paste, keepTypos: o.keepTypos }));
+    process.exit(await repl({ d, hook: o.hook, script, pace: o.pace, think: o.think, splash: o.splash, inline: o.inline, capture: o.capture, timing: o.timing === "even" ? "even" : "real", paste: o.paste, keepTypos: o.keepTypos, stay: o.stay }));
+  }
+
+  // ONE LINE, ONE HOOK: this mode exists to ask a hook what it does, so
+  // without one there is no question.
+  if (o.hook === "none") {
+    console.error("simcli: `--hook none` is for a session or a script; one line needs a hook to ask.");
+    process.exit(2);
   }
 
   const raw = ask(o.hook, d.name, payload(d, o.line, o.why || o.line));
